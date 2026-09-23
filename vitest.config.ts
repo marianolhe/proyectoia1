@@ -73,6 +73,9 @@ export default defineConfig({
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
         '**/index.ts',
+        // Los puertos son contratos puros (interfaces y uniones de tipos):
+        // se borran al compilar, asi que no hay nada que ejecutar ni cubrir.
+        '**/ports/**',
         '**/dist/**',
         '**/types.ts',
       ],
