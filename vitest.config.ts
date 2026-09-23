@@ -78,6 +78,10 @@ export default defineConfig({
         '**/ports/**',
         '**/dist/**',
         '**/types.ts',
+        // Punto de entrada del proceso: solo arranca el servidor real y
+        // registra el resultado. No hay logica que valga probar sin
+        // levantar un binario de verdad.
+        '**/cli.ts',
       ],
       thresholds: {
         lines: 80,
