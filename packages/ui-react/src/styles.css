@@ -1,0 +1,447 @@
+/*
+ * Estilos del widget AGIChat.
+ *
+ * Todas las clases llevan el prefijo agc- y todas las variables viven en
+ * .agc-widget: el widget se incrusta en sitios de terceros y no debe pisar ni
+ * heredar estilos del cliente. Para cambiar la paleta basta con redefinir las
+ * variables sobre .agc-widget, sin tocar selectores.
+ */
+
+.agc-widget {
+  --agc-font:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --agc-bg: #ffffff;
+  --agc-surface: #f4f6fb;
+  --agc-text: #1c1f2a;
+  --agc-muted: #6b7080;
+  --agc-border: #d5d9e3;
+  --agc-accent: #1c1f2a;
+  --agc-accent-contrast: #ffffff;
+  --agc-link: #2f4fd8;
+  --agc-danger: #b42318;
+  --agc-danger-surface: #fdecea;
+  --agc-focus: #3b5bdb;
+  --agc-radius-panel: 20px;
+  --agc-radius-bubble: 22px;
+  --agc-radius-input: 8px;
+  --agc-shadow: 0 18px 48px rgba(28, 31, 42, 0.18);
+  --agc-panel-width: 380px;
+  --agc-panel-height: 640px;
+
+  font-family: var(--agc-font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--agc-text);
+}
+
+.agc-widget *,
+.agc-widget *::before,
+.agc-widget *::after {
+  box-sizing: border-box;
+}
+
+/* El atributo hidden debe ganarle a cualquier display definido abajo. */
+.agc-widget [hidden] {
+  display: none !important;
+}
+
+.agc-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Modos de montaje ----------------------------------------------------- */
+
+.agc-widget--floating {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.agc-widget--floating .agc-panel {
+  width: min(var(--agc-panel-width), calc(100vw - 32px));
+  height: min(var(--agc-panel-height), calc(100vh - 120px));
+  box-shadow: var(--agc-shadow);
+}
+
+.agc-widget--inline .agc-panel {
+  width: 100%;
+  max-width: var(--agc-panel-width);
+  height: var(--agc-panel-height);
+}
+
+/* --- Panel ---------------------------------------------------------------- */
+
+.agc-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--agc-bg);
+  border: 1px solid var(--agc-border);
+  border-radius: var(--agc-radius-panel);
+}
+
+.agc-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 24px 16px;
+  text-align: center;
+}
+
+.agc-avatar {
+  width: 76px;
+  height: 76px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--agc-surface);
+}
+
+.agc-avatar__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.agc-header__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.agc-header__subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--agc-muted);
+}
+
+/* --- Hilo ----------------------------------------------------------------- */
+
+.agc-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 20px 12px;
+  scroll-behavior: smooth;
+}
+
+.agc-messages__list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agc-message {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+.agc-message--user {
+  align-items: flex-end;
+}
+
+.agc-bubble {
+  max-width: 85%;
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px solid var(--agc-border);
+  border-radius: var(--agc-radius-bubble);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agc-message--assistant {
+  align-items: flex-start;
+}
+
+.agc-message--assistant[data-status='streaming'] .agc-markdown > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: currentColor;
+  animation: agc-caret 1s steps(1) infinite;
+}
+
+.agc-message__error {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--agc-danger);
+  background: var(--agc-danger-surface);
+  border-radius: 6px;
+}
+
+/* --- Markdown del agente -------------------------------------------------- */
+
+.agc-markdown {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.agc-markdown > :first-child {
+  margin-top: 0;
+}
+
+.agc-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.agc-markdown h1,
+.agc-markdown h2,
+.agc-markdown h3 {
+  margin: 14px 0 6px;
+  line-height: 1.3;
+}
+
+.agc-markdown h1 {
+  font-size: 18px;
+}
+
+.agc-markdown h2 {
+  font-size: 16px;
+}
+
+.agc-markdown h3 {
+  font-size: 15px;
+}
+
+.agc-markdown p,
+.agc-markdown ul,
+.agc-markdown ol,
+.agc-markdown blockquote,
+.agc-markdown pre,
+.agc-markdown table {
+  margin: 0 0 10px;
+}
+
+.agc-markdown ul,
+.agc-markdown ol {
+  padding-left: 22px;
+}
+
+.agc-markdown a {
+  color: var(--agc-link);
+}
+
+.agc-markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 1px 5px;
+  background: var(--agc-surface);
+  border-radius: 4px;
+}
+
+.agc-markdown pre {
+  overflow-x: auto;
+  padding: 10px 12px;
+  background: var(--agc-surface);
+  border-radius: 8px;
+}
+
+.agc-markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.agc-markdown blockquote {
+  padding-left: 12px;
+  color: var(--agc-muted);
+  border-left: 3px solid var(--agc-border);
+}
+
+.agc-markdown table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.agc-markdown th,
+.agc-markdown td {
+  padding: 6px 8px;
+  text-align: left;
+  border: 1px solid var(--agc-border);
+}
+
+.agc-markdown img {
+  max-width: 100%;
+}
+
+/* --- Indicador de escritura ----------------------------------------------- */
+
+.agc-typing {
+  display: inline-flex;
+  gap: 5px;
+  padding: 10px 0 2px;
+}
+
+.agc-typing__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--agc-muted);
+  animation: agc-bounce 1.2s ease-in-out infinite;
+}
+
+.agc-typing__dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.agc-typing__dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* --- Avisos --------------------------------------------------------------- */
+
+.agc-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 20px 8px;
+}
+
+.agc-notice {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.agc-notice--status {
+  color: var(--agc-muted);
+  background: var(--agc-surface);
+}
+
+.agc-notice--error {
+  color: var(--agc-danger);
+  background: var(--agc-danger-surface);
+}
+
+/* --- Composer ------------------------------------------------------------- */
+
+.agc-composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--agc-border);
+}
+
+.agc-composer__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  font: inherit;
+  color: inherit;
+  background: var(--agc-bg);
+  border: 1px solid var(--agc-border);
+  border-radius: var(--agc-radius-input);
+}
+
+.agc-composer__input::placeholder {
+  color: var(--agc-muted);
+}
+
+.agc-composer__send,
+.agc-launcher {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--agc-accent-contrast);
+  background: var(--agc-accent);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.agc-composer__send {
+  width: 44px;
+  height: 44px;
+}
+
+.agc-composer__send svg {
+  width: 22px;
+  height: 22px;
+}
+
+.agc-composer__send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.agc-launcher {
+  width: 60px;
+  height: 60px;
+  box-shadow: var(--agc-shadow);
+}
+
+.agc-launcher svg {
+  width: 26px;
+  height: 26px;
+}
+
+.agc-composer__input:focus-visible,
+.agc-composer__send:focus-visible,
+.agc-launcher:focus-visible,
+.agc-markdown a:focus-visible {
+  outline: 2px solid var(--agc-focus);
+  outline-offset: 2px;
+}
+
+/* --- Animaciones ---------------------------------------------------------- */
+
+@keyframes agc-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes agc-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agc-typing__dot,
+  .agc-message--assistant[data-status='streaming'] .agc-markdown > :last-child::after {
+    animation: none;
+  }
+
+  .agc-messages {
+    scroll-behavior: auto;
+  }
+}
