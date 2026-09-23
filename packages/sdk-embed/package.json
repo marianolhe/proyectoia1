@@ -1,0 +1,32 @@
+{
+  "name": "@agichat/sdk-embed",
+  "version": "0.1.0",
+  "description": "Bundle embebible de AGIChat: una etiqueta script monta el widget en Shadow DOM en cualquier sitio.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/agichat.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@agichat/core": "workspace:*",
+    "@agichat/transport-ws": "workspace:*",
+    "@agichat/ui-react": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.1.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

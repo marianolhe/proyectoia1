@@ -1,0 +1,25 @@
+{
+  "name": "@agichat/mock-server",
+  "version": "0.1.0",
+  "description": "Servidor WebSocket que simula un agente con streaming token por token y respuestas en Markdown.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --sourcemap --clean",
+    "start": "node --experimental-strip-types src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@agichat/core": "workspace:*",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  }
+}
