@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
 
 /**
  * Configuracion raiz de pruebas.
@@ -13,7 +14,24 @@ import react from '@vitejs/plugin-react'
  * reales en los paquetes que si se publican. La justificacion completa esta en
  * docs/ARQUITECTURA.md.
  */
+const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url))
+
+/**
+ * Los paquetes del workspace se resuelven desde su codigo fuente y no desde
+ * dist/: asi las pruebas corren en un clon limpio sin compilar antes, y un
+ * cambio en core se refleja de inmediato en los paquetes que lo consumen.
+ */
+const WORKSPACE_ALIASES = {
+  '@agichat/core': fromRoot('./packages/core/src/index.ts'),
+  '@agichat/transport-ws': fromRoot('./packages/transport-ws/src/index.ts'),
+  '@agichat/mock-server': fromRoot('./packages/mock-server/src/index.ts'),
+  '@agichat/ui-react': fromRoot('./packages/ui-react/src/index.ts'),
+}
+
 export default defineConfig({
+  resolve: {
+    alias: WORKSPACE_ALIASES,
+  },
   test: {
     passWithNoTests: true,
 

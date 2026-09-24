@@ -23,7 +23,14 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noEmit": true
+    "noEmit": true,
+
+    "paths": {
+      "@agichat/core": ["./packages/core/src/index.ts"],
+      "@agichat/transport-ws": ["./packages/transport-ws/src/index.ts"],
+      "@agichat/mock-server": ["./packages/mock-server/src/index.ts"],
+      "@agichat/ui-react": ["./packages/ui-react/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "dist", "coverage"]
 }
