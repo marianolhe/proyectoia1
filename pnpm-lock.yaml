@@ -211,6 +211,9 @@ importers:
       '@agichat/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@agichat/mock-server':
+        specifier: workspace:*
+        version: link:../../packages/mock-server
       '@agichat/transport-ws':
         specifier: workspace:*
         version: link:../../packages/transport-ws
@@ -311,12 +314,21 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@agichat/mock-server':
+        specifier: workspace:*
+        version: link:../mock-server
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(postcss@8.5.28)(supports-color@7.2.0)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      ws:
+        specifier: ^8.18.3
+        version: 8.21.3
 
   packages/ui-react:
     dependencies:

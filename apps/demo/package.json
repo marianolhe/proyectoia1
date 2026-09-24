@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@agichat/core": "workspace:*",
+    "@agichat/mock-server": "workspace:*",
     "@agichat/transport-ws": "workspace:*",
     "@agichat/ui-react": "workspace:*",
     "react": "^19.2.0",

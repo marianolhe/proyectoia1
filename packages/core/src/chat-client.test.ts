@@ -200,3 +200,15 @@ describe('ChatClient', () => {
     })
   })
 })
+
+describe('ChatClient con un transporte ya abierto', () => {
+  it('toma el estado actual del canal al construirse', async () => {
+    const transport = new InMemoryTransport()
+    await transport.connect()
+
+    const client = new ChatClient({ transport })
+
+    expect(client.getState().connection).toBe('open')
+    await expect(client.sendMessage('hola')).resolves.toMatchObject({ ok: true })
+  })
+})

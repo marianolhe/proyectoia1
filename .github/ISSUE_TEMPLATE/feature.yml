@@ -1,0 +1,25 @@
+name: Propuesta de funcionalidad
+description: Una capacidad nueva para el widget, el SDK o el flujo de trabajo.
+title: 'feat: '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema que resuelve
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+      description: Dónde encaja según la guía de escalado de docs/ARQUITECTURA.md.
+    validations:
+      required: true
+  - type: textarea
+    id: aceptacion
+    attributes:
+      label: Criterio de aceptación
+      description: Cómo se comprueba que quedó terminado.
+    validations:
+      required: true

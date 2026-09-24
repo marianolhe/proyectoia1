@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sitio de un cliente con AGIChat</title>
+    <!-- Estilos agresivos del anfitrion: el Shadow DOM impide que alcancen al widget. -->
+    <style>
+      body {
+        font-family: Georgia, serif;
+        margin: 40px;
+      }
+      button,
+      input,
+      p {
+        color: crimson !important;
+        font-size: 30px !important;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Tienda de ejemplo</h1>
+    <p>Este sitio no usa React. El widget se integra con una sola etiqueta script.</p>
+
+    <!-- Antes, compile el bundle (pnpm build) y levante el mock (pnpm mock). -->
+    <script
+      src="../dist/agichat.js"
+      onload="AGIChat.mount({ wsUrl: 'ws://localhost:8787' })"
+    ></script>
+  </body>
+</html>

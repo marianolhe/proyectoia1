@@ -1,0 +1,45 @@
+# Publicacion del SDK: al empujar una etiqueta v*, verifica todo, empaqueta
+# los paquetes distribuibles y crea una GitHub Release con los artefactos.
+# Solo usa GITHUB_TOKEN; no publica en npm.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publicar ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Verificar
+        run: pnpm verify
+
+      # pnpm pack sustituye workspace:* por la version real de cada paquete.
+      - name: Empaquetar
+        run: |
+          mkdir -p release
+          for pkg in core transport-ws ui-react sdk-embed; do
+            pnpm --filter "@agichat/$pkg" pack --pack-destination "$GITHUB_WORKSPACE/release"
+          done
+          cp packages/sdk-embed/dist/agichat.js release/
+
+      - name: Crear la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --title "$GITHUB_REF_NAME" --generate-notes

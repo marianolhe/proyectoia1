@@ -61,7 +61,7 @@ export interface OutboundMessage {
 /**
  * Contrato que debe cumplir cualquier canal hacia un agente.
  *
- * Implementaciones actuales: `InMemoryTransport` (pruebas y demo sin red) y
+ * Implementaciones: `InMemoryTransport` en este paquete (pruebas, sin red) y
  * `WebSocketTransport` en @agichat/transport-ws. En Fase 2 basta con apuntar
  * el adaptador WebSocket al backend real, o publicar un adaptador nuevo que
  * implemente esta interfaz.

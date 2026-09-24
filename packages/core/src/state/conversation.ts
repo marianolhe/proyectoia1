@@ -142,16 +142,18 @@ export function conversationReducer(
     case 'transport/status': {
       if (state.connection === action.status) return state
 
-      // Si el canal muere con una respuesta a medias, esa respuesta se marca
-      // como fallida en lugar de quedarse girando para siempre.
-      const channelIsDown = action.status === 'closed' || action.status === 'error'
+      // Si el canal se cae con una respuesta a medias, esa respuesta se marca
+      // como fallida en lugar de quedarse girando para siempre. Reconectar
+      // cuenta como caida: el servidor no retoma un turno en un socket nuevo,
+      // asi que esperar ese turno bloquearia el envio para siempre.
+      const channelIsDown =
+        action.status === 'closed' || action.status === 'error' || action.status === 'reconnecting'
       if (channelIsDown) {
-        const messages = settleStreamingMessages(state.messages, 'error')
         return {
           ...state,
           connection: action.status,
-          messages,
-          phase: messages === state.messages ? state.phase : 'idle',
+          messages: settleStreamingMessages(state.messages, 'error'),
+          phase: 'idle',
         }
       }
 

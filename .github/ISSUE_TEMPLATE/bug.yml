@@ -1,0 +1,42 @@
+name: Reporte de defecto
+description: Algo del SDK, la demo o el mock no funciona como debería.
+title: 'fix: '
+labels: [bug]
+body:
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. pnpm mock
+        2. pnpm dev
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: obtenido
+    attributes:
+      label: Resultado obtenido
+      description: Incluya mensajes de error, salida de consola o capturas.
+    validations:
+      required: true
+  - type: dropdown
+    id: paquete
+    attributes:
+      label: Paquete afectado
+      options:
+        - core
+        - transport-ws
+        - mock-server
+        - ui-react
+        - sdk-embed
+        - apps/demo
+        - CI/CD o documentación
+    validations:
+      required: true

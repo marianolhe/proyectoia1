@@ -21,12 +21,18 @@ const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url))
  * dist/: asi las pruebas corren en un clon limpio sin compilar antes, y un
  * cambio en core se refleja de inmediato en los paquetes que lo consumen.
  */
-const WORKSPACE_ALIASES = {
-  '@agichat/core': fromRoot('./packages/core/src/index.ts'),
-  '@agichat/transport-ws': fromRoot('./packages/transport-ws/src/index.ts'),
-  '@agichat/mock-server': fromRoot('./packages/mock-server/src/index.ts'),
-  '@agichat/ui-react': fromRoot('./packages/ui-react/src/index.ts'),
-}
+const WORKSPACE_ALIASES = [
+  // Va primero y como expresion regular: debe capturar tambien `?inline`, y
+  // el alias de '@agichat/ui-react' no puede tragarse esta subruta.
+  {
+    find: /^@agichat\/ui-react\/styles\.css/,
+    replacement: fromRoot('./packages/ui-react/src/styles.css'),
+  },
+  { find: '@agichat/core', replacement: fromRoot('./packages/core/src/index.ts') },
+  { find: '@agichat/transport-ws', replacement: fromRoot('./packages/transport-ws/src/index.ts') },
+  { find: '@agichat/mock-server', replacement: fromRoot('./packages/mock-server/src/index.ts') },
+  { find: '@agichat/ui-react', replacement: fromRoot('./packages/ui-react/src/index.ts') },
+]
 
 export default defineConfig({
   resolve: {
@@ -90,7 +96,6 @@ export default defineConfig({
         'apps/**',
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
-        '**/index.ts',
         // Los puertos son contratos puros (interfaces y uniones de tipos):
         // se borran al compilar, asi que no hay nada que ejecutar ni cubrir.
         '**/ports/**',

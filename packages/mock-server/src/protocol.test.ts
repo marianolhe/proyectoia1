@@ -47,7 +47,10 @@ describe('parseInboundFrame', () => {
 
   it('rechaza cuando text esta vacio o solo tiene espacios', () => {
     const result = parseInboundFrame({ conversationId: 'c', messageId: 'm', text: '   ' })
-    expect(result).toEqual({ ok: false, reason: expect.stringContaining('text no puede estar vacio') })
+    expect(result).toEqual({
+      ok: false,
+      reason: expect.stringContaining('text no puede estar vacio'),
+    })
   })
 })
 

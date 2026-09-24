@@ -107,8 +107,11 @@
   height: 76px;
   margin-bottom: 8px;
   overflow: hidden;
+  padding: 10px;
+  color: var(--agc-text);
+  background: var(--agc-bg);
+  border: 1.5px solid var(--agc-text);
   border-radius: 50%;
-  background: var(--agc-surface);
 }
 
 .agc-avatar__image {
@@ -164,7 +167,7 @@
   max-width: 85%;
   margin: 0;
   padding: 10px 16px;
-  border: 1px solid var(--agc-border);
+  border: 1px solid var(--agc-text);
   border-radius: var(--agc-radius-bubble);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -347,7 +350,6 @@
   align-items: center;
   gap: 10px;
   padding: 12px 16px 16px;
-  border-top: 1px solid var(--agc-border);
 }
 
 .agc-composer__input {
@@ -358,7 +360,7 @@
   font: inherit;
   color: inherit;
   background: var(--agc-bg);
-  border: 1px solid var(--agc-border);
+  border: 1px solid var(--agc-text);
   border-radius: var(--agc-radius-input);
 }
 
@@ -380,9 +382,11 @@
   cursor: pointer;
 }
 
+/* Pildora negra con flecha, como en el wireframe. */
 .agc-composer__send {
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 40px;
+  border-radius: 999px;
 }
 
 .agc-composer__send svg {

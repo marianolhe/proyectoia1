@@ -54,6 +54,10 @@ export class ChatClient {
 
     const conversationId = options.conversationId ?? createId()
     this.#store = createStore(conversationReducer, createInitialState(conversationId))
+    // El transporte puede llegar ya abierto (por ejemplo, compartido entre
+    // vistas); sin esto el cliente creeria estar desconectado hasta el
+    // siguiente cambio de estado, que podria no llegar nunca.
+    this.#store.dispatch({ type: 'transport/status', status: this.#transport.status })
 
     this.#unsubscribe = this.#transport.subscribe((event) => {
       this.#handleTransportEvent(event)

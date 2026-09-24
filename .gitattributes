@@ -1,0 +1,7 @@
+# Finales de linea LF en todas las plataformas: Prettier exige endOfLine lf
+# y sin esta regla core.autocrlf de Windows convierte el arbol a CRLF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

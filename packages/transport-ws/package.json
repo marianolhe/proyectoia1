@@ -21,13 +21,16 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {
     "@agichat/core": "workspace:*"
   },
   "devDependencies": {
+    "@agichat/mock-server": "workspace:*",
+    "@types/ws": "^8.18.1",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3"
   }
 }

@@ -29,6 +29,7 @@
       "@agichat/core": ["./packages/core/src/index.ts"],
       "@agichat/transport-ws": ["./packages/transport-ws/src/index.ts"],
       "@agichat/mock-server": ["./packages/mock-server/src/index.ts"],
+      "@agichat/mock-server/browser": ["./packages/mock-server/src/browser.ts"],
       "@agichat/ui-react": ["./packages/ui-react/src/index.ts"]
     }
   },

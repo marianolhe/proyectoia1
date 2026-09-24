@@ -170,6 +170,33 @@ describe('transport/status', () => {
     expect(closed.messages[0]?.status).toBe('complete')
     expect(closed.connection).toBe('error')
   })
+
+  it('al reconectar cierra la respuesta a medias y libera el envio', () => {
+    const state = run(
+      BASE,
+      { type: 'transport/status', status: 'open' },
+      { type: 'user/submit', messageId: 'm1', text: 'Hola', at: 1 },
+      { type: 'agent/start', messageId: 'a1', at: 2 },
+      { type: 'agent/delta', messageId: 'a1', text: 'parcial' },
+      { type: 'transport/status', status: 'reconnecting' },
+      { type: 'transport/status', status: 'open' },
+    )
+
+    expect(state.messages[1]).toMatchObject({ content: 'parcial', status: 'error' })
+    expect(canSubmit(state)).toBe(true)
+  })
+
+  it('al caer el canal antes del primer fragmento no deja la fase en sending', () => {
+    const state = run(
+      BASE,
+      { type: 'transport/status', status: 'open' },
+      { type: 'user/submit', messageId: 'm1', text: 'Hola', at: 1 },
+      { type: 'transport/status', status: 'reconnecting' },
+    )
+
+    expect(state.phase).toBe('idle')
+    expect(state.messages[0]).toMatchObject({ role: 'user', status: 'complete' })
+  })
 })
 
 describe('transport/error', () => {

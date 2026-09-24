@@ -39,7 +39,9 @@ describe('streamResponse', () => {
     expect(events.at(-1)).toEqual({ type: 'message.end', messageId: 'msg-1' })
 
     const deltas = events.filter((event) => event.type === 'message.delta')
-    const rebuilt = deltas.map((event) => (event.type === 'message.delta' ? event.text : '')).join('')
+    const rebuilt = deltas
+      .map((event) => (event.type === 'message.delta' ? event.text : ''))
+      .join('')
     expect(rebuilt).toBe('hola mundo')
   })
 

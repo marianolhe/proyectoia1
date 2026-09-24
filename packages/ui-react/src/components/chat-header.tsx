@@ -28,23 +28,17 @@ export function ChatHeader({ title, subtitle, assistantName, avatarSrc }: ChatHe
   )
 }
 
-/** Ilustracion vectorial incluida para no depender de un recurso externo. */
+/** Osito del wireframe, en vector para no depender de un recurso externo. */
 function DefaultAvatar() {
   return (
     <svg className="agc-avatar__image" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <circle cx="32" cy="32" r="32" fill="#e7ecfb" />
-      <path d="M14 58c2-11 9-17 18-17s16 6 18 17a32 32 0 0 1-36 0Z" fill="#3b5bdb" />
-      <circle cx="32" cy="27" r="12" fill="#f6c9a8" />
-      <path d="M19 27c0-9 6-15 13-15s13 6 13 14c-4-1-9-4-11-8-3 5-9 8-15 9Z" fill="#2b2d42" />
-      <circle cx="27.5" cy="29" r="1.6" fill="#2b2d42" />
-      <circle cx="36.5" cy="29" r="1.6" fill="#2b2d42" />
-      <path
-        d="M28 34c2.4 2 5.6 2 8 0"
-        fill="none"
-        stroke="#2b2d42"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
+      <circle cx="17" cy="19" r="8" fill="currentColor" />
+      <circle cx="47" cy="19" r="8" fill="currentColor" />
+      <ellipse cx="32" cy="35" rx="19" ry="17" fill="currentColor" />
+      <circle cx="25" cy="31" r="2.6" fill="var(--agc-bg)" />
+      <circle cx="39" cy="31" r="2.6" fill="var(--agc-bg)" />
+      <ellipse cx="32" cy="41" rx="8" ry="6" fill="var(--agc-bg)" />
+      <path d="M29 38.5h6l-3 3.2Z" fill="currentColor" />
     </svg>
   )
 }
