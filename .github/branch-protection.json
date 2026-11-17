@@ -1,0 +1,14 @@
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["Verificar (Node 20)", "Verificar (Node 22)", "Evals del agente", "Imagen Docker"]
+  },
+  "enforce_admins": true,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "dismiss_stale_reviews": true
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}

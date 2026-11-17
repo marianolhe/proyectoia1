@@ -92,6 +92,8 @@ La conexión (`idle`, `connecting`, `open`, `reconnecting`, `closed`, `error`) y
 │           └── app.tsx
 ├── docs/
 │   ├── ARQUITECTURA.md       # Este documento
+│   ├── AGENTE.md             # Fase 2: agente, MCP, seguridad y escalabilidad
+│   ├── evals/                # Reporte generado por pnpm evals
 │   ├── adr/                  # Registro de decisiones de arquitectura
 │   └── ia/bitacora.md        # Uso de IA: prompt, propuesta y decisión
 ├── packages/
@@ -114,9 +116,35 @@ La conexión (`idle`, `connecting`, `open`, `reconnecting`, `closed`, `error`) y
 │   │   ├── hooks/                  # useChat, useOwnedClient
 │   │   ├── labels.ts               # Todos los textos visibles
 │   │   └── styles.css              # Estilos con prefijo agc-
-│   └── sdk-embed/
-│       ├── src/mount.tsx           # AGIChat.mount() con Shadow DOM
-│       └── examples/embed.html     # Integración con una sola etiqueta script
+│   ├── sdk-embed/
+│   │   ├── src/mount.tsx           # AGIChat.mount() con Shadow DOM
+│   │   └── examples/embed.html     # Integración con una sola etiqueta script
+│   ├── guardrails/src/             # Defensas LLM01 y LLM07 (lógica pura, sin dependencias)
+│   │   ├── input-guard.ts, patterns.ts      # Filtro de entrada
+│   │   ├── untrusted-data.ts                # Saneo y delimitado de datos externos
+│   │   ├── canary.ts, output-guard.ts       # Canario y revisión de salida
+│   │   └── url-policy.ts                    # Lista blanca de destinos
+│   ├── mcp-kit/src/                # Base de los MCP: caché, cupo diario, HTTP sin estado, stdio
+│   ├── mcp-tmdb/src/               # MCP Server de películas (TMDB)
+│   │   ├── tools.ts                         # Las 6 herramientas
+│   │   ├── tmdb-client.ts, movie-parser.ts  # Acceso a la API y validación de respuestas
+│   │   └── server.ts, cli.ts                # Fábrica del servidor y arranque
+│   ├── mcp-books/src/              # MCP Server de libros (Google Books) y comparación
+│   │   ├── tools.ts                         # Las 4 herramientas
+│   │   ├── book-matcher.ts                  # Elige la obra original, descarta guiones y guías
+│   │   └── compare.ts                       # Veredicto película contra libro
+│   ├── agent-server/src/           # Backend del agente (sin estado)
+│   │   ├── agent.ts                         # Orquestador: ciclo ReAct y defensas
+│   │   ├── system-prompt.ts                 # Prompt sin secretos, con canario
+│   │   ├── ports/                           # LlmClient y ToolGateway
+│   │   ├── llm/                             # Adaptadores: Claude y chat completions
+│   │   ├── tools/mcp-tool-gateway.ts        # Cliente MCP con descubrimiento dinámico
+│   │   └── server.ts, cli.ts                # WebSocket del widget y arranque
+│   └── evals/src/                  # Evals: uso correcto, LLM01 y LLM07, y su reporte
+│       ├── cases/                           # Un archivo por categoría
+│       ├── harness.ts, checks.ts            # Banco de pruebas y comprobaciones
+│       └── fixtures/fake-apis.ts            # TMDB y Google Books simulados
+├── Dockerfile, docker-compose.yml  # Imagen única del backend y despliegue local
 ├── AGENTS.md                 # Reglas para herramientas agénticas
 ├── eslint.config.mjs         # Estilo y límites de arquitectura
 ├── tsconfig.base.json        # TypeScript estricto y paths del workspace
@@ -147,10 +175,8 @@ El umbral de 80 % en líneas, ramas, funciones y sentencias se calcula de forma 
 
 Los `index.ts` **no** se excluyen: cada uno tiene un `index.test.ts` que fija la API pública del paquete.
 
-## Plan de la Fase 2
+## Fase 2: el agente
 
-1. Acordar con el equipo del agente el contrato de `AgentEvent`. Si coincide, basta con apuntar `WebSocketTransport` a la URL real (`VITE_AGICHAT_WS_URL` en la demo, `wsUrl` en `AGIChat.mount`).
-2. Si el agente usa otro protocolo, crear `packages/transport-<nombre>` y su suite de pruebas. La interfaz no cambia.
-3. Autenticación: agregar las credenciales como opción del adaptador (token en la URL o en el primer mensaje), nunca en la interfaz.
-4. Nuevas capacidades del agente (herramientas, citas, adjuntos): extender `AgentEvent` y seguir la guía de escalado.
-5. Mantener `mock-server` como doble de prueba para desarrollo y CI.
+La Fase 2 se cumplió como estaba planeado: el widget se conecta al agente real con el mismo `WebSocketTransport`, cambiando solo la URL. El contrato `AgentEvent` creció con dos eventos (`message.image` para el póster y `action.open_url` para abrir pestañas) siguiendo la guía de escalado de este documento, y la interfaz ganó tres componentes (`MessageImages`, `ActionNotices` y `Attribution`). Ningún componente existente tuvo que rediseñarse.
+
+La arquitectura del agente, los MCP Servers, las defensas contra LLM01 y LLM07, los diagramas de alto y bajo nivel y la justificación de escalabilidad están en [AGENTE.md](AGENTE.md).

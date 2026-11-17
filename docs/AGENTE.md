@@ -1,6 +1,21 @@
 # Arquitectura del agente (Fase 2)
 
-Este documento cubre lo que se agregó en el proyecto 2: el agente que recomienda películas y los MCP Servers que exponen sus herramientas. La arquitectura del widget (Fase 1) sigue en [ARQUITECTURA.md](ARQUITECTURA.md); el paso a la Fase 2 no tocó su diseño, solo le agregó dos eventos.
+Este documento cubre lo que se agregó en el proyecto 2: el agente que recomienda películas, los MCP Servers que exponen sus herramientas y las defensas contra LLM01 y LLM07. La arquitectura del widget (Fase 1) sigue en [ARQUITECTURA.md](ARQUITECTURA.md); el paso a la Fase 2 no tocó su diseño, solo le agregó dos eventos.
+
+## Requisitos y dónde se cumplen
+
+| Requisito del enunciado                                | Dónde se cumple                                                                                           |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Comunicarse por el widget del proyecto 1               | `agent-server` habla el mismo contrato `ChatTransport` por WebSocket; el widget solo cambia de URL        |
+| Recomendar películas con TMDB                          | `mcp-tmdb`: `tmdb_discover_movies`, `tmdb_search_movies`, `tmdb_similar_movies`, `tmdb_movie_details`     |
+| Logo o atribución de TMDB                              | Pie del widget (`Attribution`), configurado en la demo y en `sdk-embed`                                   |
+| Comparar con el libro y decidir si vale la pena verla  | `mcp-books`: `books_find_for_movie` y `books_compare_with_movie` (veredicto determinista en `compare.ts`) |
+| Anunciar que puede hacer la comparación                | System prompt y, como garantía, `withAnnouncement` en `agent.ts` agrega el aviso en el primer turno       |
+| Abrir Google Books e IMDb sin que el usuario haga clic | `tmdb_open_imdb` y `books_open_google_books` devuelven una directiva; el widget llama a `window.open`     |
+| Mostrar el póster                                      | `tmdb_show_poster` devuelve una directiva de imagen; viaja como evento `message.image`                    |
+| Reforzado contra LLM01 y LLM07                         | `packages/guardrails` y las capas del orquestador; ver [Seguridad](#seguridad-llm01-y-llm07)              |
+| Herramientas abstraídas en MCP Servers                 | `mcp-tmdb` y `mcp-books`, servidores MCP independientes (Streamable HTTP o stdio)                         |
+| Evals de uso correcto, LLM01 y LLM07                   | `packages/evals`; reporte en [docs/evals/REPORTE.md](evals/REPORTE.md)                                    |
 
 ## Diagrama de alto nivel
 
@@ -14,7 +29,7 @@ flowchart LR
   subgraph backend["Backend (contenedores sin estado)"]
     lb["Balanceador<br/>WebSocket"]
     subgraph agentes["agent-server × N réplicas"]
-      orq["Orquestador<br/>ciclo ReAct"]
+      orq["Orquestador<br/>ciclo ReAct + guardrails"]
     end
     subgraph mcps["MCP Servers (Streamable HTTP, sin estado)"]
       tmdb["mcp-tmdb × N<br/>caché + cupo diario"]
@@ -69,20 +84,32 @@ El sistema es **un solo agente, centralizado**, del tipo _orquestador con herram
 ```mermaid
 flowchart TB
   entrada(["Mensaje del widget<br/>texto + historial"]) --> parse["protocol.ts<br/>valida la trama"]
-  parse --> hist["toLlmHistory<br/>historial para el modelo"]
-  hist --> modelo["LlmClient.complete<br/>system prompt + herramientas"]
+  parse --> filtro{"inspectUserInput<br/>LLM01 / LLM07"}
+  filtro -->|"ataque"| rechazo["Respuesta fija de rechazo<br/>sin llamar al modelo"]
+  filtro -->|"permitido"| hist["sanitizeHistory<br/>descarta ataques previos"]
+  hist --> modelo["LlmClient.complete<br/>system prompt + canario + herramientas"]
 
   modelo -->|"tool_use"| existe{"¿herramienta<br/>publicada?"}
   existe -->|"no"| errorTool["Resultado de error"]
   existe -->|"sí"| gateway["McpToolGateway.callTool"]
-  gateway --> mcp["MCP Servers<br/>tools/call"]
-  mcp --> resultado["Resultado estructurado<br/>data + ui"]
-  resultado -->|"data"| modelo
-  resultado -->|"ui"| acumuladas["Póster y pestañas<br/>pendientes"]
+
+  gateway --> mcpT["mcp-tmdb"]
+  gateway --> mcpB["mcp-books"]
+  mcpT --> resultado["Resultado estructurado<br/>data + ui"]
+  mcpB --> resultado
+
+  resultado --> ui{"isAllowedUrl<br/>directivas ui"}
+  ui -->|"fuera de lista"| descartada["Se descarta y se registra"]
+  ui -->|"permitida"| acumuladas["Póster y pestañas<br/>pendientes"]
+  resultado --> sanea["sanitizeUntrusted + wrapUntrusted<br/>&lt;datos_externos&gt;"]
+  sanea --> modelo
   errorTool --> modelo
 
-  modelo -->|"end"| stream["Streaming al widget<br/>start · delta · image · end · open_url"]
+  modelo -->|"end"| md["sanitizeMarkdownUrls<br/>quita imágenes y enlaces externos"]
   modelo -->|"más de 6 pasos"| corte["Mensaje de límite"]
+  md --> salida{"inspectOutput<br/>canario · prompt · secretos"}
+  salida -->|"fuga"| bloqueo["Rechazo, sin pestañas ni imágenes"]
+  salida -->|"limpia"| stream["Streaming al widget<br/>start · delta · image · end · open_url"]
   acumuladas --> stream
 ```
 
@@ -91,13 +118,14 @@ flowchart TB
 | Componente             | Archivo                                                   | Responsabilidad                                                                                          |
 | ---------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Servidor del agente    | `agent-server/src/server.ts`                              | WebSocket del widget, `/healthz`, límite de tasa, un turno a la vez por conexión, orígenes permitidos    |
-| Orquestador            | `agent-server/src/agent.ts`                               | Ciclo ReAct, límites por turno y streaming del resultado                                                 |
-| System prompt          | `agent-server/src/system-prompt.ts`                       | Rol, capacidades y uso de cada herramienta. Sin secretos                                                 |
+| Orquestador            | `agent-server/src/agent.ts`                               | Ciclo ReAct, límites por turno, aplicación de todas las defensas, streaming del resultado                |
+| System prompt          | `agent-server/src/system-prompt.ts`                       | Rol, uso de herramientas, reglas de seguridad y canario. Sin secretos                                    |
 | Puerto del modelo      | `agent-server/src/ports/llm.ts`                           | Contrato `LlmClient`; adaptadores en `llm/anthropic-llm.ts` y `llm/openai-compatible-llm.ts`             |
 | Puerto de herramientas | `agent-server/src/ports/tool-gateway.ts`                  | Contrato `ToolGateway`; adaptador MCP en `tools/mcp-tool-gateway.ts`                                     |
 | MCP de TMDB            | `mcp-tmdb/src/tools.ts`                                   | 6 herramientas; arma las URL del póster y de IMDb a partir de identificadores validados                  |
 | MCP de libros          | `mcp-books/src/tools.ts`, `book-matcher.ts`, `compare.ts` | 4 herramientas; elige la obra original (descarta guiones y guías) y calcula el veredicto                 |
 | Base de los MCP        | `mcp-kit/src`                                             | Caché, cupo diario, cliente HTTP con errores como valores, servidor HTTP sin estado y arranque por stdio |
+| Defensas               | `guardrails/src`                                          | Filtro de entrada, saneo de datos externos, canario, revisión de salida y lista blanca de URL            |
 
 ### Herramientas MCP
 
@@ -127,9 +155,51 @@ El contrato del proyecto 1 se extendió con dos eventos, validados en `transport
 | `action.open_url` | `actionId`, `url`, `title`       | Abre la pestaña si el sitio está en su lista blanca; si el navegador la bloquea, ofrece el enlace |
 | `error`           | `code`, `message`, `recoverable` | Muestra el aviso                                                                                  |
 
-La URL de una imagen o de una pestaña **nunca la escribe el modelo**: la arma el MCP Server a partir de un identificador validado, y el widget la revisa contra su lista blanca antes de pintarla o abrirla.
+La URL de una imagen o de una pestaña **nunca la escribe el modelo**: la arma el MCP Server a partir de un identificador validado, el orquestador la revisa contra la lista blanca y el widget la vuelve a revisar contra la suya.
 
 Las pestañas se abren con `window.open` al recibir el evento. Los navegadores solo permiten ventanas emergentes poco después de una acción del usuario; si el modelo tarda, el navegador puede bloquearla. En ese caso el widget lo detecta y muestra el enlace. Para la demo conviene permitir ventanas emergentes en el sitio.
+
+## Seguridad: LLM01 y LLM07
+
+La premisa es que **el modelo puede fallar**. Por eso cada defensa vive fuera del modelo y se puede probar sin él; el system prompt es una capa más, no la principal.
+
+### LLM01: Prompt Injection
+
+| Capa                             | Archivo                                                  | Contra qué                                                                                                                                                                                                                   |
+| -------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Filtro de entrada                | `guardrails/src/input-guard.ts`                          | Órdenes directas en español e inglés, cambio de rol, palabras de jailbreak, falsos turnos de sistema. Normaliza antes de comparar (mayúsculas, acentos, ancho completo, caracteres invisibles) y decodifica segmentos base64 |
+| Historial saneado                | `agent.ts` (`sanitizeHistory`)                           | Un ataque rechazado antes no reingresa como contexto; el historial lo manda el cliente y no es de fiar                                                                                                                       |
+| Datos externos no confiables     | `guardrails/src/untrusted-data.ts`                       | Inyección indirecta en sinopsis o descripciones: se recortan, se reemplazan las que parecen instrucciones y todo va dentro de `<datos_externos>`, que el prompt declara como datos                                           |
+| Separación instrucciones / datos | `system-prompt.ts`                                       | El prompt le dice al modelo que nada dentro de `<datos_externos>` es una orden                                                                                                                                               |
+| Herramientas cerradas            | `agent.ts` (`executeToolCall`)                           | El modelo solo puede llamar herramientas publicadas por los MCP; los argumentos los valida el esquema Zod de cada una                                                                                                        |
+| Lista blanca de destinos         | `guardrails/src/url-policy.ts`, `ui-react/src/policy.ts` | Abrir sitios de phishing o exfiltrar datos en la URL de una imagen. Doble revisión: backend y widget                                                                                                                         |
+| Markdown saneado                 | `sanitizeMarkdownUrls` y `markdown-message.tsx`          | Imágenes y enlaces Markdown hacia sitios externos                                                                                                                                                                            |
+| Límites por turno                | `agent.ts` (`AgentLimits`), `server.ts`                  | Bucles de herramientas que agotarían el cupo de las APIs                                                                                                                                                                     |
+
+### LLM07: System Prompt Leakage
+
+| Capa                      | Archivo                          | Contra qué                                                                                                                                                     |
+| ------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sin secretos en el prompt | `system-prompt.ts`, `config.ts`  | Aunque el prompt se filtre entero, no da acceso a nada: las claves de TMDB y Google Books viven solo en sus MCP Servers, y la del modelo nunca entra al prompt |
+| Filtro de entrada         | `guardrails/src/patterns.ts`     | Peticiones del prompt, de “todo lo anterior”, de traducciones literales y de claves o variables de entorno                                                     |
+| Canario                   | `guardrails/src/canary.ts`       | Cadena aleatoria por proceso dentro del prompt. Si aparece en la salida (tal cual, con separadores, al revés o en base64), hay fuga segura                     |
+| Copia literal             | `guardrails/src/output-guard.ts` | Fragmentos de 60 caracteres del prompt aunque no traigan el canario                                                                                            |
+| Formas de secreto         | `output-guard.ts`                | Claves conocidas del proceso y patrones `sk-…`, `AIza…` y JWT                                                                                                  |
+| Sin streaming del modelo  | `agent.ts`                       | La respuesta completa se revisa antes de enviar el primer fragmento: una fuga ya enviada no se puede retirar                                                   |
+
+Cada bloqueo deja una línea JSON en el log (`{"scope":"security",...}`) con el tipo de evento y la regla, nunca con el texto del usuario.
+
+## Evals
+
+`pnpm evals` ejecuta 27 casos contra el agente real (`runAgentTurn`) con los MCP Servers reales conectados en memoria. Solo se simulan las APIs externas (para que sean reproducibles y no gasten cupo) y el modelo:
+
+- **Uso correcto (8 casos):** recomendar y mostrar el póster, anunciar la comparación, veredicto favorable y desfavorable, película sin libro, abrir IMDb, abrir Google Books y un control de falsos positivos.
+- **LLM01 (10 casos):** inyección directa en español e inglés, ofuscada con caracteres invisibles, en base64, falso turno de sistema, inyección indirecta en una sinopsis de TMDB, exfiltración por imagen Markdown, herramienta inventada, historial envenenado y bucle de herramientas.
+- **LLM07 (9 casos):** tres peticiones que se detienen en la entrada y seis que pasan el filtro a propósito, para demostrar que la salida contiene la fuga completa, parcial, del canario en base64, deletreado, al revés y de una clave.
+
+En los ataques, el modelo simulado está **ya comprometido**: hace exactamente lo que el atacante quiere. Si el caso pasa, la defensa no depende de que el modelo se porte bien. `pnpm evals:live` corre los mismos casos contra el modelo configurado en `.env` y omite las comprobaciones que exigen un modelo comprometido.
+
+El reporte se genera en [docs/evals/REPORTE.md](evals/REPORTE.md) y CI lo publica en el resumen de cada ejecución. La corrida contra un modelo real (Gemini 3.5 Flash Lite, plan gratuito) también aprobó los 27 casos: [docs/evals/REPORTE-live.md](evals/REPORTE-live.md).
 
 ## Cómo escalar el agente
 
@@ -138,5 +208,6 @@ Las pestañas se abren con `window.open` al recibir el evento. Los navegadores s
 | Nueva herramienta de películas o libros   | `defineTool` en `mcp-tmdb/src/tools.ts` o `mcp-books/src/tools.ts`, con su prueba. El agente la descubre solo      |
 | Nuevo MCP Server (por ejemplo, streaming) | `packages/mcp-<nombre>` sobre `mcp-kit`, servicio nuevo en `docker-compose.yml` y entrada en `MCP_SERVERS`         |
 | Nuevo proveedor de modelo                 | Adaptador de `LlmClient` en `agent-server/src/llm/` y caso en `create-llm.ts`                                      |
+| Nueva defensa                             | Función pura en `guardrails`, llamada desde `agent.ts`, y casos en `packages/evals/src/cases`                      |
 | Nuevo tipo de directiva para el widget    | Variante en `UiDirective`, evento en `AgentEvent`, validación en `parse-agent-event.ts` y componente en `ui-react` |
 | Varias réplicas compartiendo caché        | Implementación de `TtlCache` sobre Redis inyectada en `ApiClient`                                                  |

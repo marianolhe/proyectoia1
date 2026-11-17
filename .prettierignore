@@ -2,3 +2,5 @@ node_modules/
 dist/
 coverage/
 pnpm-lock.yaml
+# Reporte generado por pnpm evals: su formato lo decide el generador.
+docs/evals/
