@@ -113,6 +113,27 @@ export default tseslint.config(
   },
 
   {
+    // Los MCP Servers se despliegan y escalan por separado: no se conocen entre
+    // si ni conocen al agente que los consume.
+    files: ['packages/mcp-*/**/*.ts'],
+    ignores: ['packages/mcp-kit/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@agichat/*', '!@agichat/mcp-kit'],
+              message:
+                'Un MCP Server solo puede usar @agichat/mcp-kit. Otro agente debe poder consumirlo sin arrastrar el resto del sistema.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     // El agente descubre las herramientas por MCP; nunca importa un servidor.
     files: ['packages/agent-server/**/*.ts'],
     rules: {
