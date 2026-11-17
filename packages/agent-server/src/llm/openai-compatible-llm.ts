@@ -26,12 +26,31 @@ export interface OpenAiCompatibleOptions {
   readonly apiKey: string
   readonly model: string
   readonly post?: HttpPost
+  /**
+   * Esperas antes de cada reintento ante 429 o 503. Los planes gratuitos
+   * limitan las peticiones por minuto: esperar unos segundos suele bastar.
+   */
+  readonly retryDelaysMs?: readonly number[]
+  readonly sleep?: (ms: number) => Promise<void>
 }
+
+const DEFAULT_RETRY_DELAYS_MS = [3000, 10000]
+const RETRYABLE_STATUS = new Set([429, 503])
 
 type Json = Record<string, unknown>
 
 function isObject(value: unknown): value is Json {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** Estado opaco que este adaptador guarda en `providerState`. */
+interface WireState {
+  readonly toolCalls: readonly Json[]
+}
+
+function rawToolCalls(state: unknown): readonly Json[] | null {
+  if (!isObject(state) || !Array.isArray(state.toolCalls)) return null
+  return (state as unknown as WireState).toolCalls
 }
 
 function toWireMessages(system: string, messages: readonly LlmMessage[]): Json[] {
@@ -40,11 +59,17 @@ function toWireMessages(system: string, messages: readonly LlmMessage[]): Json[]
     if (message.role === 'user') {
       wire.push({ role: 'user', content: message.content })
     } else if (message.role === 'assistant') {
-      const toolCalls = (message.toolCalls ?? []).map((call) => ({
-        id: call.id,
-        type: 'function',
-        function: { name: call.name, arguments: JSON.stringify(call.input) },
-      }))
+      // Se reenvian las llamadas tal como las mando el proveedor: Gemini 3
+      // adjunta una firma (`extra_content.google.thought_signature`) que exige
+      // recibir de vuelta y que rechaza la peticion si falta.
+      const original = rawToolCalls(message.providerState)
+      const toolCalls =
+        original ??
+        (message.toolCalls ?? []).map((call) => ({
+          id: call.id,
+          type: 'function',
+          function: { name: call.name, arguments: JSON.stringify(call.input) },
+        }))
       wire.push({
         role: 'assistant',
         content: message.content,
@@ -113,12 +138,40 @@ export class OpenAiCompatibleLlm implements LlmClient {
   readonly #apiKey: string
   readonly #model: string
   readonly #post: HttpPost
+  readonly #retryDelaysMs: readonly number[]
+  readonly #sleep: (ms: number) => Promise<void>
 
   constructor(options: OpenAiCompatibleOptions) {
     this.#url = `${options.baseUrl.replace(/\/+$/, '')}/chat/completions`
     this.#apiKey = options.apiKey
     this.#model = options.model
     this.#post = options.post ?? ((url, init) => fetch(url, init))
+    this.#retryDelaysMs = options.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS
+    this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+  }
+
+  /** Envia la peticion y reintenta con espera si el proveedor esta saturado. */
+  async #send(body: string): Promise<Awaited<ReturnType<HttpPost>>> {
+    for (let attempt = 0; ; attempt += 1) {
+      let response: Awaited<ReturnType<HttpPost>>
+      try {
+        response = await this.#post(this.#url, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${this.#apiKey}`,
+          },
+          body,
+        })
+      } catch {
+        throw new LlmError('unavailable', 'No se pudo contactar al proveedor del modelo.')
+      }
+      const delay = this.#retryDelaysMs[attempt]
+      if (response.ok || !RETRYABLE_STATUS.has(response.status) || delay === undefined) {
+        return response
+      }
+      await this.#sleep(delay)
+    }
   }
 
   async complete(request: LlmRequest): Promise<LlmResponse> {
@@ -139,19 +192,7 @@ export class OpenAiCompatibleLlm implements LlmClient {
           }),
     }
 
-    let response: Awaited<ReturnType<HttpPost>>
-    try {
-      response = await this.#post(this.#url, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${this.#apiKey}`,
-        },
-        body: JSON.stringify(body),
-      })
-    } catch {
-      throw new LlmError('unavailable', 'No se pudo contactar al proveedor del modelo.')
-    }
+    const response = await this.#send(JSON.stringify(body))
     if (!response.ok) throw errorFor(response.status)
 
     let payload: unknown
@@ -171,6 +212,9 @@ export class OpenAiCompatibleLlm implements LlmClient {
     const stop =
       toolCalls.length > 0 ? 'tool_use' : choice.finish_reason === 'length' ? 'max_tokens' : 'end'
 
-    return { text, toolCalls, stop }
+    if (toolCalls.length === 0) return { text, toolCalls, stop }
+    const raw = (choice.message.tool_calls as unknown[]).filter(isObject)
+    const providerState: WireState = { toolCalls: raw }
+    return { text, toolCalls, stop, providerState }
   }
 }

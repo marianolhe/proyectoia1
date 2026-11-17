@@ -4,6 +4,15 @@ import { startAgentServer } from './server.js'
 import { buildSystemPrompt } from './system-prompt.js'
 import { McpToolGateway, httpConnector } from './tools/mcp-tool-gateway.js'
 
+// Carga el .env de la raiz del repositorio si existe (`pnpm agent`, `pnpm evals`).
+// En Docker no hay archivo: las variables ya llegan por el entorno. Las que
+// ya estan definidas no se sobrescriben.
+try {
+  process.loadEnvFile(new URL('../../../.env', import.meta.url))
+} catch {
+  // Sin .env se usa solo el entorno del proceso.
+}
+
 const loaded = loadConfig(process.env)
 
 if (!loaded.ok) {

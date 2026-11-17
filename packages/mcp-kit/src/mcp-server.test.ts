@@ -130,12 +130,13 @@ describe('startMcpHttpServer', () => {
 })
 
 describe('runMcpServer', () => {
-  it('arranca por HTTP en el puerto de PORT', async () => {
+  it('arranca por HTTP en el puerto de su variable', async () => {
     const log = vi.fn()
     const result = await runMcpServer({
       label: 'prueba',
       createServer: factory,
-      env: { PORT: '0' },
+      env: { MCP_PRUEBA_PORT: '0', PORT: '1' },
+      portVariable: 'MCP_PRUEBA_PORT',
       defaultPort: 1,
       log,
     })
@@ -154,6 +155,7 @@ describe('runMcpServer', () => {
       label: 'prueba',
       createServer: () => server,
       env: { MCP_TRANSPORT: 'stdio' },
+      portVariable: 'MCP_PRUEBA_PORT',
       defaultPort: 1,
       log,
     })
@@ -169,6 +171,7 @@ describe('runMcpServer', () => {
       label: 'x',
       createServer: factory,
       env: {},
+      portVariable: 'MCP_PRUEBA_PORT',
       defaultPort: 0,
     })
     expect(spy).toHaveBeenCalled()
