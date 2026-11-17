@@ -11,13 +11,14 @@ Widget de chat agéntico embebible (proyecto 1) y **Sofía**, un agente que reco
 - Está reforzado contra **LLM01 (Prompt Injection)** y **LLM07 (System Prompt Leakage)** del OWASP Top 10 for LLMs.
 - Sus herramientas viven en dos **MCP Servers** que cualquier otro agente puede reutilizar.
 
-| Documento                                      | Contenido                                                                                   |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| [docs/AGENTE.md](docs/AGENTE.md)               | Fase 2: diagramas de alto y bajo nivel, clasificación del agente, escalabilidad y seguridad |
-| [docs/evals/REPORTE.md](docs/evals/REPORTE.md) | Resultado de los evals (uso correcto, LLM01, LLM07)                                         |
-| [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)   | Arquitectura del widget y estructura de carpetas                                            |
-| [AGENTS.md](AGENTS.md)                         | Reglas para herramientas agénticas y para contribuir                                        |
-| [docs/adr](docs/adr)                           | Decisiones de arquitectura                                                                  |
+| Documento                                                | Contenido                                                                                   |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [docs/AGENTE.md](docs/AGENTE.md)                         | Fase 2: diagramas de alto y bajo nivel, clasificación del agente, escalabilidad y seguridad |
+| [docs/evals/REPORTE.md](docs/evals/REPORTE.md)           | Resultado de los evals (uso correcto, LLM01, LLM07)                                         |
+| [docs/evals/REPORTE-live.md](docs/evals/REPORTE-live.md) | Los mismos evals contra Gemini real: 27 de 27 aprobados                                     |
+| [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)             | Arquitectura del widget y estructura de carpetas                                            |
+| [AGENTS.md](AGENTS.md)                                   | Reglas para herramientas agénticas y para contribuir                                        |
+| [docs/adr](docs/adr)                                     | Decisiones de arquitectura                                                                  |
 
 > Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.
 

@@ -199,7 +199,7 @@ Cada bloqueo deja una línea JSON en el log (`{"scope":"security",...}`) con el 
 
 En los ataques, el modelo simulado está **ya comprometido**: hace exactamente lo que el atacante quiere. Si el caso pasa, la defensa no depende de que el modelo se porte bien. `pnpm evals:live` corre los mismos casos contra el modelo configurado en `.env` y omite las comprobaciones que exigen un modelo comprometido.
 
-El reporte se genera en [docs/evals/REPORTE.md](evals/REPORTE.md) y CI lo publica en el resumen de cada ejecución.
+El reporte se genera en [docs/evals/REPORTE.md](evals/REPORTE.md) y CI lo publica en el resumen de cada ejecución. La corrida contra un modelo real (Gemini 3.5 Flash Lite, plan gratuito) también aprobó los 27 casos: [docs/evals/REPORTE-live.md](evals/REPORTE-live.md).
 
 ## Cómo escalar el agente
 
