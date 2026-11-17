@@ -32,6 +32,7 @@ function llm(post: HttpPost) {
     apiKey: 'clave',
     model: 'modelo-gratis',
     post,
+    sleep: () => Promise.resolve(),
   })
 }
 
@@ -108,7 +109,7 @@ describe('OpenAiCompatibleLlm', () => {
       ],
     })
 
-    expect(await llm(post).complete(REQUEST)).toEqual({
+    expect(await llm(post).complete(REQUEST)).toMatchObject({
       text: '',
       stop: 'tool_use',
       toolCalls: [
@@ -118,6 +119,47 @@ describe('OpenAiCompatibleLlm', () => {
         { id: 'call_3', name: 'cuatro', input: {} },
       ],
     })
+  })
+
+  it('reenvia las llamadas originales con la firma de Gemini', async () => {
+    const original = {
+      id: 'g1',
+      type: 'function',
+      function: { name: 'tmdb_search_movies', arguments: '{"query":"Dune"}' },
+      extra_content: { google: { thought_signature: 'firma-opaca' } },
+    }
+    const first = await llm(
+      postReturning(200, { choices: [{ message: { content: null, tool_calls: [original] } }] }),
+    ).complete(REQUEST)
+    expect(first.providerState).toEqual({ toolCalls: [original] })
+
+    const post = postReturning(200, { choices: [{ message: { content: 'ok' } }] })
+    await llm(post).complete({
+      ...REQUEST,
+      messages: [
+        { role: 'user', content: 'Busca Dune' },
+        {
+          role: 'assistant',
+          content: '',
+          toolCalls: first.toolCalls,
+          providerState: first.providerState,
+        },
+        {
+          role: 'tool',
+          results: [
+            { toolCallId: 'g1', name: 'tmdb_search_movies', content: '{}', isError: false },
+          ],
+        },
+      ],
+    })
+
+    const sent = JSON.parse(post.mock.calls[0]![1].body) as { messages: { tool_calls?: unknown }[] }
+    expect(sent.messages[2]?.tool_calls).toEqual([original])
+  })
+
+  it('sin llamadas a herramientas no guarda estado del proveedor', async () => {
+    const post = postReturning(200, { choices: [{ message: { content: 'hola' } }] })
+    expect(await llm(post).complete(REQUEST)).not.toHaveProperty('providerState')
   })
 
   it('reconoce una respuesta cortada por longitud', async () => {
@@ -138,6 +180,59 @@ describe('OpenAiCompatibleLlm', () => {
     [503, 'unavailable'],
   ])('clasifica el estado %d como %s', async (status, kind) => {
     await expect(llm(postReturning(status, {})).complete(REQUEST)).rejects.toMatchObject({ kind })
+  })
+
+  it('reintenta con espera cuando el proveedor limita la tasa', async () => {
+    const responses = [429, 503, 200]
+    const post = vi.fn<HttpPost>(() => {
+      const status = responses.shift() ?? 200
+      return Promise.resolve({
+        ok: status < 400,
+        status,
+        json: () => Promise.resolve({ choices: [{ message: { content: 'ok' } }] }),
+      })
+    })
+    const sleep = vi.fn(() => Promise.resolve())
+    const client = new OpenAiCompatibleLlm({
+      baseUrl: 'https://api.test/v1',
+      apiKey: 'k',
+      model: 'm',
+      post,
+      sleep,
+      retryDelaysMs: [10, 20],
+    })
+
+    await expect(client.complete(REQUEST)).resolves.toMatchObject({ text: 'ok' })
+    expect(post).toHaveBeenCalledTimes(3)
+    expect(sleep.mock.calls).toEqual([[10], [20]])
+  })
+
+  it('no reintenta errores que no son de saturacion', async () => {
+    const post = postReturning(400, {})
+    await expect(llm(post).complete(REQUEST)).rejects.toMatchObject({ kind: 'bad_request' })
+    expect(post).toHaveBeenCalledTimes(1)
+  })
+
+  it('por defecto espera de verdad entre reintentos', async () => {
+    vi.useFakeTimers()
+    const responses = [429, 200]
+    const post = vi.fn<HttpPost>(() => {
+      const status = responses.shift() ?? 200
+      return Promise.resolve({
+        ok: status < 400,
+        status,
+        json: () => Promise.resolve({ choices: [{ message: { content: 'ok' } }] }),
+      })
+    })
+    const pending = new OpenAiCompatibleLlm({
+      baseUrl: 'https://a/v1',
+      apiKey: 'k',
+      model: 'm',
+      post,
+    }).complete(REQUEST)
+    await vi.advanceTimersByTimeAsync(3000)
+    await expect(pending).resolves.toMatchObject({ text: 'ok' })
+    vi.useRealTimers()
   })
 
   it('informa un fallo de red', async () => {

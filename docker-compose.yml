@@ -37,7 +37,7 @@ services:
     <<: *service
     environment:
       SERVICE: mcp-tmdb
-      PORT: '8801'
+      MCP_TMDB_PORT: '8801'
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:8801/healthz']
       interval: 10s
