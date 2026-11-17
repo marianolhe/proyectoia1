@@ -1,5 +1,6 @@
 import { createId, type IdFactory } from './domain/ids.js'
-import type { ChatTransport, TransportEvent } from './ports/transport.js'
+import type { AgentActionStatus } from './domain/types.js'
+import type { ChatTransport, HistoryEntry, TransportEvent } from './ports/transport.js'
 import {
   canSubmit,
   conversationReducer,
@@ -38,6 +39,16 @@ export interface ChatClientOptions {
 export type SendResult =
   | { readonly ok: true; readonly messageId: string }
   | { readonly ok: false; readonly reason: 'empty' | 'busy' | 'disconnected' | 'failed' }
+
+/** Cuantos turnos anteriores acompanian a cada mensaje. */
+const HISTORY_LIMIT = 12
+
+function buildHistory(state: ConversationState): HistoryEntry[] {
+  return state.messages
+    .filter((message) => message.status === 'complete' && message.content.length > 0)
+    .slice(-HISTORY_LIMIT)
+    .map((message) => ({ role: message.role, content: message.content }))
+}
 
 export class ChatClient {
   readonly #transport: ChatTransport
@@ -87,6 +98,7 @@ export class ChatClient {
     if (!canSubmit(state)) return { ok: false, reason: 'disconnected' }
 
     const messageId = this.#createMessageId()
+    const history = buildHistory(state)
 
     // El mensaje se pinta antes de que la red confirme nada: el usuario debe
     // ver su texto de inmediato. Si el envio falla, la accion de error lo
@@ -98,6 +110,7 @@ export class ChatClient {
         conversationId: state.conversationId,
         messageId,
         text: trimmed,
+        ...(history.length === 0 ? {} : { history }),
       })
       return { ok: true, messageId }
     } catch (cause) {
@@ -119,6 +132,14 @@ export class ChatClient {
       type: 'conversation/reset',
       conversationId: conversationId ?? createId(),
     })
+  }
+
+  /**
+   * Registra que paso con una accion del agente. Quien la ejecuta es la
+   * interfaz (el nucleo no conoce window); aqui solo queda el resultado.
+   */
+  resolveAction(actionId: string, status: AgentActionStatus): void {
+    this.#store.dispatch({ type: 'action/resolve', actionId, status })
   }
 
   /** Da de baja la suscripcion y cierra el canal. Es idempotente. */
@@ -147,6 +168,22 @@ export class ChatClient {
         return
       case 'message.end':
         this.#store.dispatch({ type: 'agent/end', messageId: event.messageId })
+        return
+      case 'message.image':
+        this.#store.dispatch({
+          type: 'agent/image',
+          messageId: event.messageId,
+          url: event.url,
+          alt: event.alt,
+        })
+        return
+      case 'action.open_url':
+        this.#store.dispatch({
+          type: 'agent/open-url',
+          actionId: event.actionId,
+          url: event.url,
+          title: event.title,
+        })
         return
       case 'error':
         this.#store.dispatch({

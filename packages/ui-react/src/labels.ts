@@ -19,6 +19,8 @@ export interface ChatLabels {
   readonly reconnecting: string
   readonly disconnected: string
   readonly messagesRegion: string
+  readonly tabOpened: string
+  readonly tabBlocked: string
 }
 
 export const DEFAULT_LABELS: ChatLabels = {
@@ -35,6 +37,8 @@ export const DEFAULT_LABELS: ChatLabels = {
   reconnecting: 'Se perdió la conexión. Reintentando…',
   disconnected: 'Sin conexión con el asistente.',
   messagesRegion: 'Conversación',
+  tabOpened: 'Se abrió en una pestaña nueva:',
+  tabBlocked: 'El navegador bloqueó la pestaña. Ábrala aquí:',
 }
 
 export function resolveLabels(overrides: Partial<ChatLabels> | undefined): ChatLabels {

@@ -1,6 +1,7 @@
 export type {
   AgentEvent,
   ChatTransport,
+  HistoryEntry,
   OutboundMessage,
   TransportEvent,
   TransportListener,
@@ -9,7 +10,15 @@ export type {
   Unsubscribe,
 } from './ports/transport.js'
 
-export type { ConversationError, Message, MessageRole, MessageStatus } from './domain/types.js'
+export type {
+  AgentAction,
+  AgentActionStatus,
+  ConversationError,
+  Message,
+  MessageImage,
+  MessageRole,
+  MessageStatus,
+} from './domain/types.js'
 export { createId, type IdFactory } from './domain/ids.js'
 
 export {

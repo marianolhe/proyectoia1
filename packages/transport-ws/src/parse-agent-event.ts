@@ -24,6 +24,16 @@ function isString(value: unknown): value is string {
   return typeof value === 'string'
 }
 
+/** Solo https: descarta de entrada "javascript:", "data:" y similares. */
+function isHttpsUrl(value: unknown): value is string {
+  if (!isString(value)) return false
+  try {
+    return new URL(value).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function parseAgentEvent(data: unknown): TransportEvent {
   if (!isString(data)) return invalid('la trama no es texto')
 
@@ -48,6 +58,24 @@ export function parseAgentEvent(data: unknown): TransportEvent {
       if (!isString(frame.messageId)) return invalid('falta messageId')
       if (!isString(frame.text)) return invalid('falta text')
       return { type: 'message.delta', messageId: frame.messageId, text: frame.text }
+    case 'message.image':
+      if (!isString(frame.messageId)) return invalid('falta messageId')
+      if (!isHttpsUrl(frame.url)) return invalid('url de imagen invalida')
+      return {
+        type: 'message.image',
+        messageId: frame.messageId,
+        url: frame.url,
+        alt: isString(frame.alt) ? frame.alt : '',
+      }
+    case 'action.open_url':
+      if (!isString(frame.actionId)) return invalid('falta actionId')
+      if (!isHttpsUrl(frame.url)) return invalid('url de accion invalida')
+      return {
+        type: 'action.open_url',
+        actionId: frame.actionId,
+        url: frame.url,
+        title: isString(frame.title) ? frame.title : '',
+      }
     case 'error':
       if (!isString(frame.code) || !isString(frame.message)) return invalid('error incompleto')
       return {

@@ -1,8 +1,11 @@
 import type { ChatClient, ChatTransport } from '@agichat/core'
-import { useId, useState } from 'react'
-import { useChat } from '../hooks/use-chat.js'
+import { useId, useMemo, useState } from 'react'
+import { useChat, type UseChatResult } from '../hooks/use-chat.js'
+import { useOpenUrlActions, type UrlOpener } from '../hooks/use-open-url-actions.js'
 import { useOwnedClient } from '../hooks/use-owned-client.js'
 import { resolveLabels, type ChatLabels } from '../labels.js'
+import { PolicyContext, resolvePolicy, type WidgetPolicy } from '../policy.js'
+import type { AttributionInfo } from './attribution.js'
 import { ChatPanel } from './chat-panel.js'
 import { Launcher } from './launcher.js'
 
@@ -32,10 +35,30 @@ export type ChatWidgetProps = ChatConnectionProps & {
   readonly labels?: Partial<ChatLabels>
   readonly avatarSrc?: string
   readonly className?: string
+  /** Aviso de la fuente de datos, al pie del panel (por ejemplo, TMDB). */
+  readonly attribution?: AttributionInfo
+  /** Servidores de imagenes y sitios que el agente puede abrir. */
+  readonly policy?: Partial<WidgetPolicy>
+  /** Sustituye a window.open; pensado para pruebas y entornos sin ventanas. */
+  readonly openUrl?: UrlOpener
+}
+
+/**
+ * Componente sin interfaz: tiene que vivir dentro de PolicyContext para leer
+ * la politica que el propio widget provee.
+ */
+function ActionRunner({ chat, open }: { chat: UseChatResult; open: UrlOpener | undefined }) {
+  useOpenUrlActions(chat.actions, chat.resolveAction, open)
+  return null
 }
 
 export function ChatWidget(props: ChatWidgetProps) {
-  const { launcher = true, defaultOpen = false, avatarSrc, className } = props
+  const { launcher = true, defaultOpen = false, avatarSrc, className, attribution } = props
+  // Se memoiza por contenido y no por referencia: el integrador suele pasar
+  // un objeto literal, y una politica "nueva" en cada render volveria a
+  // pintar todos los mensajes con cada fragmento de texto que llega.
+  const policyKey = JSON.stringify(resolvePolicy(props.policy))
+  const policy = useMemo(() => JSON.parse(policyKey) as WidgetPolicy, [policyKey])
 
   const ownedClient = useOwnedClient(props.transport ?? null)
   const chat = useChat(props.client ?? ownedClient)
@@ -49,26 +72,30 @@ export function ChatWidget(props: ChatWidgetProps) {
   const panelVisible = !launcher || open
 
   return (
-    <div className={classes}>
-      {/* Se oculta en vez de desmontarse: asi el hilo, el borrador y la
+    <PolicyContext.Provider value={policy}>
+      <ActionRunner chat={chat} open={props.openUrl} />
+      <div className={classes}>
+        {/* Se oculta en vez de desmontarse: asi el hilo, el borrador y la
           posicion de scroll sobreviven a cerrar y abrir la burbuja. */}
-      <div className="agc-widget__panel" hidden={!panelVisible}>
-        <ChatPanel
-          chat={chat}
-          labels={labels}
-          id={panelId}
-          {...(avatarSrc === undefined ? {} : { avatarSrc })}
-        />
+        <div className="agc-widget__panel" hidden={!panelVisible}>
+          <ChatPanel
+            chat={chat}
+            labels={labels}
+            id={panelId}
+            {...(avatarSrc === undefined ? {} : { avatarSrc })}
+            {...(attribution === undefined ? {} : { attribution })}
+          />
+        </div>
+        {launcher && (
+          <Launcher
+            open={open}
+            controls={panelId}
+            openLabel={labels.openChat}
+            closeLabel={labels.closeChat}
+            onToggle={() => setOpen((current) => !current)}
+          />
+        )}
       </div>
-      {launcher && (
-        <Launcher
-          open={open}
-          controls={panelId}
-          openLabel={labels.openChat}
-          closeLabel={labels.closeChat}
-          onToggle={() => setOpen((current) => !current)}
-        />
-      )}
-    </div>
+    </PolicyContext.Provider>
   )
 }

@@ -1,0 +1,24 @@
+{
+  "name": "@agichat/mcp-kit",
+  "version": "0.1.0",
+  "description": "Piezas compartidas por los MCP Servers: cache, presupuesto diario, HTTP y arranque.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.6.7"
+  }
+}

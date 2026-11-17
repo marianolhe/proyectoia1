@@ -1,6 +1,7 @@
 import type { Message } from '@agichat/core'
 import { memo } from 'react'
 import { MarkdownMessage } from './markdown-message.js'
+import { MessageImages } from './message-images.js'
 
 export interface MessageBubbleProps {
   readonly message: Message
@@ -37,6 +38,7 @@ export const MessageBubble = memo(function MessageBubble({
       aria-busy={isStreaming}
     >
       {message.content.length > 0 && <MarkdownMessage content={message.content} />}
+      {message.images !== undefined && <MessageImages images={message.images} />}
       {isInterrupted && (
         <p className="agc-message__error" role="note">
           {interruptedLabel}

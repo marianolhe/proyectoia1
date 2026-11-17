@@ -1,6 +1,11 @@
 import type { ChatTransport } from '@agichat/core'
 import { WebSocketTransport } from '@agichat/transport-ws'
-import { ChatWidget, type ChatLabels } from '@agichat/ui-react'
+import {
+  ChatWidget,
+  type AttributionInfo,
+  type ChatLabels,
+  type WidgetPolicy,
+} from '@agichat/ui-react'
 import widgetCss from '@agichat/ui-react/styles.css?inline'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -17,6 +22,10 @@ export interface MountOptions {
   /** `false` pinta el panel en linea dentro de `target`, sin burbuja. */
   readonly launcher?: boolean
   readonly defaultOpen?: boolean
+  /** Aviso de la fuente de datos al pie del panel (por ejemplo, TMDB). */
+  readonly attribution?: AttributionInfo
+  /** Servidores de imagenes y sitios que el agente puede abrir. */
+  readonly policy?: Partial<WidgetPolicy>
 }
 
 export interface AGIChatInstance {
@@ -66,6 +75,8 @@ export function mount(options: MountOptions): AGIChatInstance {
         defaultOpen={options.defaultOpen ?? false}
         {...(options.labels === undefined ? {} : { labels: options.labels })}
         {...(options.avatarSrc === undefined ? {} : { avatarSrc: options.avatarSrc })}
+        {...(options.attribution === undefined ? {} : { attribution: options.attribution })}
+        {...(options.policy === undefined ? {} : { policy: options.policy })}
       />
     </StrictMode>,
   )

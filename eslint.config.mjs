@@ -113,8 +113,33 @@ export default tseslint.config(
   },
 
   {
-    // El servidor mock es una herramienta de desarrollo: ahi si se registra por consola.
-    files: ['packages/mock-server/**/*.ts', 'apps/demo/**/*.{ts,tsx}'],
+    // El agente descubre las herramientas por MCP; nunca importa un servidor.
+    files: ['packages/agent-server/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@agichat/mcp-tmdb',
+                '@agichat/mcp-books',
+                '@agichat/ui-react',
+                '@agichat/sdk-embed',
+              ],
+              message:
+                'El agente habla con las herramientas por el protocolo MCP (tools/list y tools/call). Importar un servidor lo acoplaria y rompería el despliegue independiente.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    // El servidor mock es una herramienta de desarrollo y los cli.ts son puntos
+    // de entrada de procesos: ahi si se registra por consola.
+    files: ['packages/mock-server/**/*.ts', 'packages/*/src/cli.ts', 'apps/demo/**/*.{ts,tsx}'],
     rules: {
       'no-console': 'off',
     },

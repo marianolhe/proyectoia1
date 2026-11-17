@@ -343,6 +343,59 @@
   background: var(--agc-danger-surface);
 }
 
+.agc-notice a {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* --- Imagenes del agente -------------------------------------------------- */
+
+.agc-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agc-images__item {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: var(--agc-surface);
+}
+
+.agc-markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+/* --- Atribucion ----------------------------------------------------------- */
+
+.agc-attribution {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 12px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--agc-muted);
+}
+
+.agc-attribution__link {
+  flex-shrink: 0;
+  color: inherit;
+  font-weight: 600;
+}
+
+.agc-attribution__logo {
+  display: block;
+  height: 14px;
+  width: auto;
+}
+
 /* --- Composer ------------------------------------------------------------- */
 
 .agc-composer {

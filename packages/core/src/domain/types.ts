@@ -18,11 +18,18 @@ export type MessageRole = 'user' | 'assistant'
  */
 export type MessageStatus = 'streaming' | 'complete' | 'error'
 
+/** Imagen adjunta a un mensaje del agente. */
+export interface MessageImage {
+  readonly url: string
+  readonly alt: string
+}
+
 export interface Message {
   readonly id: string
   readonly role: MessageRole
   /** Texto en Markdown. La sanitizacion ocurre al renderizar, no aqui. */
   readonly content: string
+  readonly images?: readonly MessageImage[]
   readonly status: MessageStatus
   readonly createdAt: number
 }
@@ -34,6 +41,22 @@ export interface Message {
  * agente este respondiendo, y un corte de red no debe borrar la conversacion.
  */
 export type ConversationPhase = 'idle' | 'sending' | 'streaming'
+
+/**
+ * Resultado de intentar abrir una pestania. "blocked" cubre tanto el bloqueo
+ * de ventanas emergentes del navegador como un destino fuera de la lista
+ * permitida; en ambos casos la interfaz ofrece el enlace para abrirlo a mano.
+ */
+export type AgentActionStatus = 'pending' | 'opened' | 'blocked'
+
+/** Accion que el agente pide ejecutar en el navegador del usuario. */
+export interface AgentAction {
+  readonly id: string
+  readonly type: 'open_url'
+  readonly url: string
+  readonly title: string
+  readonly status: AgentActionStatus
+}
 
 export interface ConversationError {
   readonly code: string

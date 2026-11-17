@@ -1,6 +1,8 @@
 import type { ConversationState } from '@agichat/core'
 import type { UseChatResult } from '../hooks/use-chat.js'
 import type { ChatLabels } from '../labels.js'
+import { ActionNotices } from './action-notices.js'
+import { Attribution, type AttributionInfo } from './attribution.js'
 import { ChatHeader } from './chat-header.js'
 import { Composer } from './composer.js'
 import { ConnectionNotice } from './connection-notice.js'
@@ -10,6 +12,7 @@ export interface ChatPanelProps {
   readonly chat: UseChatResult
   readonly labels: ChatLabels
   readonly avatarSrc?: string
+  readonly attribution?: AttributionInfo
   readonly id?: string
 }
 
@@ -25,7 +28,7 @@ function shouldShowTyping(state: ConversationState): boolean {
 }
 
 /** Panel del wireframe: encabezado, hilo, avisos y composer, de arriba abajo. */
-export function ChatPanel({ chat, labels, avatarSrc, id }: ChatPanelProps) {
+export function ChatPanel({ chat, labels, avatarSrc, attribution, id }: ChatPanelProps) {
   const { state } = chat
 
   return (
@@ -43,6 +46,11 @@ export function ChatPanel({ chat, labels, avatarSrc, id }: ChatPanelProps) {
         interruptedLabel={labels.interrupted}
         regionLabel={labels.messagesRegion}
       />
+      <ActionNotices
+        actions={chat.actions}
+        openedLabel={labels.tabOpened}
+        blockedLabel={labels.tabBlocked}
+      />
       <ConnectionNotice connection={state.connection} error={state.error} labels={labels} />
       <Composer
         canSubmit={chat.canSubmit}
@@ -50,6 +58,7 @@ export function ChatPanel({ chat, labels, avatarSrc, id }: ChatPanelProps) {
         sendLabel={labels.send}
         onSend={chat.sendMessage}
       />
+      {attribution !== undefined && <Attribution attribution={attribution} />}
     </section>
   )
 }
