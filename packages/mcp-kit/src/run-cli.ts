@@ -15,6 +15,11 @@ export interface RunOptions {
   readonly label: string
   readonly createServer: () => McpServer
   readonly env: Record<string, string | undefined>
+  /**
+   * Variable de entorno con el puerto. Cada servidor usa la suya porque todos
+   * comparten el mismo .env: con un `PORT` comun chocarian al correr en local.
+   */
+  readonly portVariable: string
   readonly defaultPort: number
   /** En stdio, stdout es el canal del protocolo: los avisos van a stderr. */
   readonly log?: (message: string) => void
@@ -32,7 +37,7 @@ export async function runMcpServer(options: RunOptions): Promise<RunResult> {
     return { transport: 'stdio' }
   }
 
-  const port = Number(options.env.PORT ?? options.defaultPort)
+  const port = Number(options.env[options.portVariable] ?? options.defaultPort)
   const handle = await startMcpHttpServer({ port, createServer: options.createServer })
   log(`[${options.label}] escuchando en ${handle.url}`)
   return { transport: 'http', handle }
