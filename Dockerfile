@@ -1,5 +1,5 @@
-# Imagen del backend. Hoy solo contiene el agente; los MCP Servers se agregan
-# como servicios de la misma imagen. Cada contenedor elige su proceso con SERVICE; asi se compila
+# Una sola imagen para los servicios del backend (agente y MCP de TMDB; el de
+# libros se agrega igual). Cada contenedor elige su proceso con SERVICE; asi se compila
 # y se versiona una vez, y los tres despliegues usan exactamente el mismo codigo.
 #
 #   docker build -t agichat .
@@ -13,9 +13,10 @@ COPY packages ./packages
 COPY apps ./apps
 COPY tsconfig.base.json tsconfig.json ./
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter "@agichat/agent-server..." run build
+RUN pnpm --filter "@agichat/agent-server..." --filter "@agichat/mcp-tmdb..." run build
 # Se queda solo con lo necesario para ejecutar: sin devDependencies ni fuentes.
-RUN pnpm deploy --filter @agichat/agent-server --prod --legacy /out/agent-server
+RUN pnpm deploy --filter @agichat/agent-server --prod --legacy /out/agent-server \
+ && pnpm deploy --filter @agichat/mcp-tmdb --prod --legacy /out/mcp-tmdb
 
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
