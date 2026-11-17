@@ -40,6 +40,12 @@ export interface RunOptions {
   /** Modelo real, solo en modo `live`. */
   readonly liveLlm?: LlmClient
   readonly cases?: readonly EvalCase[]
+  /**
+   * Pausa entre casos. Los planes gratuitos limitan las peticiones por minuto;
+   * en modo `live` espaciar los casos evita que fallen por cupo y no por el agente.
+   */
+  readonly pauseMs?: number
+  readonly sleep?: (ms: number) => Promise<void>
 }
 
 async function runCase(evalCase: EvalCase, options: RunOptions): Promise<CaseResult> {
@@ -76,7 +82,10 @@ export async function runEvals(options: RunOptions): Promise<EvalRun> {
   const results: CaseResult[] = []
   // En serie a proposito: en modo `live` evita chocar con el limite de tasa
   // del proveedor, y el orden del reporte queda estable.
-  for (const evalCase of options.cases ?? ALL_CASES) {
+  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
+  for (const [index, evalCase] of (options.cases ?? ALL_CASES).entries()) {
+    if (index > 0 && options.pauseMs !== undefined && options.pauseMs > 0)
+      await sleep(options.pauseMs)
     results.push(await runCase(evalCase, options))
   }
   return { mode: options.mode, model: options.model, results }

@@ -4,10 +4,20 @@ import { createLlm, loadConfig } from '@agichat/agent-server'
 import { renderReport, summarize } from './report.js'
 import { runEvals, type RunOptions } from './runner.js'
 
+// Carga el .env de la raiz del repositorio si existe (`pnpm agent`, `pnpm evals`).
+// En Docker no hay archivo: las variables ya llegan por el entorno. Las que
+// ya estan definidas no se sobrescriben.
+try {
+  process.loadEnvFile(new URL('../../../.env', import.meta.url))
+} catch {
+  // Sin .env se usa solo el entorno del proceso.
+}
+
 /**
  * `pnpm evals`         corre sin conexion (determinista; es lo que usa CI).
  * `pnpm evals --live`  corre contra el modelo configurado en el entorno.
  * `--out <carpeta>`    donde escribir REPORTE.md y resultados.json.
+ * `--pause-ms <n>`     pausa entre casos en modo --live (15000 por defecto).
  */
 
 function argument(name: string): string | undefined {
@@ -25,7 +35,8 @@ function resolveOptions(): RunOptions | string {
     llm.provider === 'anthropic'
       ? (llm.model ?? 'claude-opus-5-5')
       : `${llm.model} (${llm.baseUrl})`
-  return { mode: 'live', model, liveLlm: createLlm(llm) }
+  const pauseMs = Number(argument('--pause-ms') ?? 15000)
+  return { mode: 'live', model, liveLlm: createLlm(llm), pauseMs }
 }
 
 async function main(): Promise<void> {

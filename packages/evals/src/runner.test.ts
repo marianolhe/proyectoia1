@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { say, scriptedLlm } from './simulated-llm.js'
 import { ALL_CASES, runEvals } from './runner.js'
 
@@ -46,6 +46,19 @@ describe('runEvals en vivo', () => {
     expect(result?.checks.map((check) => check.description)).not.toContain(
       'Queda registrado el evento de seguridad "output_blocked"',
     )
+  })
+
+  it('espera entre casos cuando se pide una pausa', async () => {
+    const sleep = vi.fn(() => Promise.resolve())
+    await runEvals({
+      mode: 'live',
+      model: 'doble',
+      liveLlm: scriptedLlm([() => say('No puedo compartir eso.')]),
+      cases: ALL_CASES.filter((evalCase) => evalCase.id === 'L04' || evalCase.id === 'L05'),
+      pauseMs: 50,
+      sleep,
+    })
+    expect(sleep.mock.calls).toEqual([[50]])
   })
 
   it('reporta como fallo un caso cuyo turno lanza una excepcion', async () => {
