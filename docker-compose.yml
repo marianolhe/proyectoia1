@@ -1,7 +1,11 @@
 # Backend completo en local: docker compose up --build
 #
 # - agent: orquestador LLM y WebSocket del widget (ws://localhost:8787).
-# - Los MCP Servers se agregan como servicios en la misma red interna.
+# - mcp-tmdb: MCP Server por Streamable HTTP. No publica puerto
+#   hacia afuera; solo el agente lo alcanza por la red interna.
+#
+# Para escalar un servicio sin estado: docker compose up --scale mcp-tmdb=3
+# (el DNS interno de Docker reparte las conexiones entre las replicas).
 
 x-service: &service
   build: .
@@ -15,10 +19,25 @@ services:
     environment:
       SERVICE: agent-server
       PORT: '8787'
+      MCP_SERVERS: tmdb=http://mcp-tmdb:8801/mcp
     ports:
       - '8787:8787'
+    depends_on:
+      mcp-tmdb:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:8787/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  mcp-tmdb:
+    <<: *service
+    environment:
+      SERVICE: mcp-tmdb
+      MCP_TMDB_PORT: '8801'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8801/healthz']
       interval: 10s
       timeout: 3s
       retries: 3
