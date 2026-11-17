@@ -32,6 +32,7 @@ const WORKSPACE_ALIASES = [
   { find: '@agichat/transport-ws', replacement: fromRoot('./packages/transport-ws/src/index.ts') },
   { find: '@agichat/mock-server', replacement: fromRoot('./packages/mock-server/src/index.ts') },
   { find: '@agichat/ui-react', replacement: fromRoot('./packages/ui-react/src/index.ts') },
+  { find: '@agichat/guardrails', replacement: fromRoot('./packages/guardrails/src/index.ts') },
   { find: '@agichat/mcp-kit', replacement: fromRoot('./packages/mcp-kit/src/index.ts') },
   { find: '@agichat/mcp-tmdb', replacement: fromRoot('./packages/mcp-tmdb/src/index.ts') },
   { find: '@agichat/mcp-books', replacement: fromRoot('./packages/mcp-books/src/index.ts') },
@@ -67,6 +68,14 @@ export default defineConfig({
         test: {
           name: 'mock-server',
           root: './packages/mock-server',
+          environment: 'node',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'guardrails',
+          root: './packages/guardrails',
           environment: 'node',
         },
       },

@@ -113,6 +113,24 @@ export default tseslint.config(
   },
 
   {
+    // Las defensas son logica pura: no dependen de nadie del monorepo.
+    files: ['packages/guardrails/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@agichat/*'],
+              message: 'guardrails no depende de otros paquetes: cualquiera debe poder usarlo.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     // Los MCP Servers se despliegan y escalan por separado: no se conocen entre
     // si ni conocen al agente que los consume.
     files: ['packages/mcp-*/**/*.ts'],
