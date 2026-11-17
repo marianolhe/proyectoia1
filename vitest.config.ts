@@ -34,6 +34,7 @@ const WORKSPACE_ALIASES = [
   { find: '@agichat/ui-react', replacement: fromRoot('./packages/ui-react/src/index.ts') },
   { find: '@agichat/mcp-kit', replacement: fromRoot('./packages/mcp-kit/src/index.ts') },
   { find: '@agichat/mcp-tmdb', replacement: fromRoot('./packages/mcp-tmdb/src/index.ts') },
+  { find: '@agichat/mcp-books', replacement: fromRoot('./packages/mcp-books/src/index.ts') },
   { find: '@agichat/agent-server', replacement: fromRoot('./packages/agent-server/src/index.ts') },
 ]
 
@@ -82,6 +83,14 @@ export default defineConfig({
         test: {
           name: 'mcp-tmdb',
           root: './packages/mcp-tmdb',
+          environment: 'node',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'mcp-books',
+          root: './packages/mcp-books',
           environment: 'node',
         },
       },
