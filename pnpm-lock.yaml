@@ -248,6 +248,9 @@ importers:
       '@agichat/core':
         specifier: workspace:*
         version: link:../core
+      '@agichat/guardrails':
+        specifier: workspace:*
+        version: link:../guardrails
       '@anthropic-ai/sdk':
         specifier: ~1.7.0
         version: 1.7.0(zod@4.6.7)
