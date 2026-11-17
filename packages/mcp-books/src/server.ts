@@ -4,7 +4,10 @@ import { BooksClient } from './books-client.js'
 import { createBooksTools } from './tools.js'
 
 export interface BooksConfig {
-  /** Opcional: Google Books responde sin clave, con menos cupo. */
+  /**
+   * Sin clave Google Books usa un cupo anonimo compartido que suele estar
+   * agotado; el servidor arranca igual y responde con un error claro.
+   */
   readonly apiKey?: string
 }
 
