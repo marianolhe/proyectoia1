@@ -22,8 +22,29 @@ export type AgentEvent =
   | { readonly type: 'message.start'; readonly messageId: string }
   /** Un fragmento de texto de esa respuesta. Los deltas se concatenan en orden. */
   | { readonly type: 'message.delta'; readonly messageId: string; readonly text: string }
+  /**
+   * Una imagen que acompania a esa respuesta (el poster de una pelicula). Va
+   * como evento propio y no como Markdown dentro del texto para que la
+   * interfaz decida como pintarla y pueda validar de donde viene.
+   */
+  | {
+      readonly type: 'message.image'
+      readonly messageId: string
+      readonly url: string
+      readonly alt: string
+    }
   /** La respuesta termino y el mensaje queda completo. */
   | { readonly type: 'message.end'; readonly messageId: string }
+  /**
+   * El agente pide abrir una pagina en una pestania nueva, sin que el usuario
+   * haga clic. La interfaz decide si el destino esta permitido.
+   */
+  | {
+      readonly type: 'action.open_url'
+      readonly actionId: string
+      readonly url: string
+      readonly title: string
+    }
   /** Fallo del agente o del canal. */
   | {
       readonly type: 'error'
@@ -51,11 +72,23 @@ export type TransportListener = (event: TransportEvent) => void
 
 export type Unsubscribe = () => void
 
+/** Un turno anterior de la conversacion, tal como lo vio el usuario. */
+export interface HistoryEntry {
+  readonly role: 'user' | 'assistant'
+  readonly content: string
+}
+
 /** Mensaje que el usuario envia hacia el agente. */
 export interface OutboundMessage {
   readonly conversationId: string
   readonly messageId: string
   readonly text: string
+  /**
+   * Turnos anteriores. Viajan con cada mensaje para que el backend no tenga
+   * que recordar nada entre peticiones: cualquier replica puede atender
+   * cualquier mensaje, y reconectar no pierde el contexto.
+   */
+  readonly history?: readonly HistoryEntry[]
 }
 
 /**

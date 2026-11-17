@@ -1,4 +1,6 @@
 import type {
+  AgentAction,
+  AgentActionStatus,
   ConversationError,
   ConversationPhase,
   Message,
@@ -21,6 +23,8 @@ export interface ConversationState {
   readonly phase: ConversationPhase
   readonly connection: TransportStatus
   readonly error: ConversationError | null
+  /** Pestanias que el agente pidio abrir. El reductor solo las registra. */
+  readonly actions: readonly AgentAction[]
 }
 
 export type ConversationAction =
@@ -33,6 +37,23 @@ export type ConversationAction =
   | { readonly type: 'agent/start'; readonly messageId: string; readonly at: number }
   | { readonly type: 'agent/delta'; readonly messageId: string; readonly text: string }
   | { readonly type: 'agent/end'; readonly messageId: string }
+  | {
+      readonly type: 'agent/image'
+      readonly messageId: string
+      readonly url: string
+      readonly alt: string
+    }
+  | {
+      readonly type: 'agent/open-url'
+      readonly actionId: string
+      readonly url: string
+      readonly title: string
+    }
+  | {
+      readonly type: 'action/resolve'
+      readonly actionId: string
+      readonly status: AgentActionStatus
+    }
   | { readonly type: 'transport/status'; readonly status: TransportStatus }
   | { readonly type: 'transport/error'; readonly error: ConversationError }
   | { readonly type: 'conversation/reset'; readonly conversationId: string }
@@ -44,6 +65,7 @@ export function createInitialState(conversationId: string): ConversationState {
     phase: 'idle',
     connection: 'idle',
     error: null,
+    actions: [],
   }
 }
 
@@ -137,6 +159,39 @@ export function conversationReducer(
       }))
       if (messages === state.messages) return state
       return { ...state, messages, phase: 'idle' }
+    }
+
+    case 'agent/image': {
+      const messages = mapMessage(state.messages, action.messageId, (message) => ({
+        ...message,
+        images: [...(message.images ?? []), { url: action.url, alt: action.alt }],
+      }))
+      return messages === state.messages ? state : { ...state, messages }
+    }
+
+    case 'agent/open-url': {
+      // Tras una reconexion el agente podria repetir la accion; abrir dos
+      // veces la misma pestania seria un error visible para el usuario.
+      if (state.actions.some((existing) => existing.id === action.actionId)) return state
+      const pending: AgentAction = {
+        id: action.actionId,
+        type: 'open_url',
+        url: action.url,
+        title: action.title,
+        status: 'pending',
+      }
+      return { ...state, actions: [...state.actions, pending] }
+    }
+
+    case 'action/resolve': {
+      const current = state.actions.find((existing) => existing.id === action.actionId)
+      if (current === undefined || current.status === action.status) return state
+      return {
+        ...state,
+        actions: state.actions.map((existing) =>
+          existing.id === action.actionId ? { ...existing, status: action.status } : existing,
+        ),
+      }
     }
 
     case 'transport/status': {

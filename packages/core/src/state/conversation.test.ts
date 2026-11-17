@@ -25,6 +25,7 @@ describe('createInitialState', () => {
       phase: 'idle',
       connection: 'idle',
       error: null,
+      actions: [],
     })
   })
 })
