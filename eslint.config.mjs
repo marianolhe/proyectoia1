@@ -178,7 +178,12 @@ export default tseslint.config(
   {
     // El servidor mock es una herramienta de desarrollo y los cli.ts son puntos
     // de entrada de procesos: ahi si se registra por consola.
-    files: ['packages/mock-server/**/*.ts', 'packages/*/src/cli.ts', 'apps/demo/**/*.{ts,tsx}'],
+    files: [
+      'packages/mock-server/**/*.ts',
+      'packages/*/src/cli.ts',
+      'apps/demo/**/*.{ts,tsx}',
+      'scripts/**/*.mjs',
+    ],
     rules: {
       'no-console': 'off',
     },
