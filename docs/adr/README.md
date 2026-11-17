@@ -10,5 +10,7 @@ Cada ADR documenta una decisión que hoy está reflejada en el código: su conte
 | [0004](0004-shadow-dom-con-iife.md)               | Distribución embebible como IIFE con Shadow DOM                  | Aceptada |
 | [0005](0005-sanitizacion-de-markdown.md)          | Markdown del agente renderizado con sanitización en dos barreras | Aceptada |
 | [0006](0006-agente-unico-con-herramientas-mcp.md) | Un agente centralizado con herramientas en MCP Servers           | Aceptada |
+| [0007](0007-defensas-fuera-del-modelo.md)         | Las defensas contra LLM01 y LLM07 viven fuera del modelo         | Aceptada |
+| [0008](0008-backend-sin-estado.md)                | Backend sin estado, con el historial en cada mensaje             | Aceptada |
 
 Para una decisión nueva, copie el formato de cualquier ADR con el siguiente número.

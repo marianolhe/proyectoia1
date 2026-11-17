@@ -1,5 +1,17 @@
 import type { AgentEvent, HistoryEntry, OutboundMessage } from '@agichat/core'
 import {
+  IMAGE_HOSTS,
+  LINK_HOSTS,
+  OPEN_URL_HOSTS,
+  inspectOutput,
+  inspectUserInput,
+  isAllowedUrl,
+  sanitizeMarkdownUrls,
+  sanitizeUntrusted,
+  wrapUntrusted,
+  type InputCategory,
+} from '@agichat/guardrails'
+import {
   LlmError,
   type LlmClient,
   type LlmMessage,
@@ -21,13 +33,29 @@ import {
  * Orquestador: un turno completo de la conversacion.
  *
  * Es el unico agente del sistema. Decide que herramientas llamar (ciclo
- * ReAct): pide una respuesta al modelo, ejecuta las herramientas que pida,
- * le devuelve los resultados y repite hasta que conteste con texto.
+ * ReAct) y concentra las defensas, en este orden:
+ *
+ *   entrada -> [filtro de entrada] -> modelo <-> herramientas MCP
+ *           -> [saneo de datos externos] -> [lista blanca de URLs]
+ *           -> [revision de salida] -> widget
  *
  * Es una funcion sin estado: todo lo que necesita llega en el mensaje (texto
  * e historial) y en `deps`. Por eso cualquier replica puede atender cualquier
  * turno.
  */
+
+export type SecurityEvent =
+  | {
+      readonly type: 'input_blocked'
+      readonly category: InputCategory
+      readonly rules: readonly string[]
+    }
+  | { readonly type: 'history_entry_dropped'; readonly category: InputCategory }
+  | { readonly type: 'untrusted_data_flagged'; readonly tool: string; readonly count: number }
+  | { readonly type: 'ui_directive_rejected'; readonly tool: string; readonly url: string }
+  | { readonly type: 'markdown_url_removed'; readonly count: number }
+  | { readonly type: 'output_blocked'; readonly category: string }
+  | { readonly type: 'unknown_tool_requested'; readonly tool: string }
 
 export interface AgentLimits {
   /** Idas y vueltas modelo-herramientas por turno (LLM10: consumo sin limite). */
@@ -46,8 +74,12 @@ export interface AgentDeps {
   readonly llm: LlmClient
   readonly tools: ToolGateway
   readonly systemPrompt: string
+  readonly canary: string
+  readonly secrets?: readonly string[]
   emit(event: AgentEvent): void
   wait(ms: number): Promise<void>
+  /** Registro de eventos de seguridad. Nunca recibe el texto del usuario. */
+  log?(event: SecurityEvent): void
   readonly limits?: Partial<AgentLimits>
   readonly timing?: Partial<StreamTiming>
 }
@@ -55,9 +87,16 @@ export interface AgentDeps {
 const DEFAULT_LIMITS: AgentLimits = { maxSteps: 6, maxToolCalls: 10, maxImages: 3, maxOpenUrls: 2 }
 const DEFAULT_TIMING: StreamTiming = { deltaDelayMs: 12, chunkSize: 28 }
 
-export const REFUSALS = {
+export const REFUSALS: Record<InputCategory | 'leak' | 'model_refusal', string> = {
+  prompt_injection:
+    'No puedo cambiar mis reglas ni seguir ese tipo de instrucciones. Con gusto te recomiendo una película: ¿qué género te apetece?',
+  prompt_extraction:
+    'No puedo compartir mis instrucciones internas ni datos de configuración. Lo que sí puedo es recomendarte una película o compararla con su libro.',
+  too_long: 'Tu mensaje es demasiado largo. ¿Podrías resumirlo en unas pocas líneas?',
+  empty: 'No recibí ningún texto. ¿Qué película te interesa?',
+  leak: 'No puedo responder a eso. ¿Te ayudo a encontrar una película?',
   model_refusal: 'No puedo ayudarte con eso. ¿Te recomiendo una película?',
-} as const
+}
 
 const STEP_LIMIT_MESSAGE =
   'Necesité demasiados pasos para responder y prefiero no darte un dato a medias. ¿Podrías hacer la pregunta de forma más concreta?'
@@ -75,41 +114,76 @@ interface TurnOutput {
   readonly openUrls: readonly Extract<UiDirective, { type: 'open_url' }>[]
 }
 
-/** Convierte el historial del widget en mensajes para el modelo. */
-export function toLlmHistory(history: readonly HistoryEntry[]): LlmMessage[] {
-  const messages: LlmMessage[] = history.map((entry) => ({
-    role: entry.role,
-    content: entry.content,
-  }))
+/**
+ * Descarta del historial los mensajes del usuario que el filtro bloquearia
+ * hoy, junto con la respuesta que les siguio. Sin esto, un ataque rechazado en
+ * el turno anterior volveria a entrar al modelo como "contexto".
+ */
+export function sanitizeHistory(
+  history: readonly HistoryEntry[],
+  log: (event: SecurityEvent) => void,
+): LlmMessage[] {
+  const messages: LlmMessage[] = []
+  let skipNextAssistant = false
+
+  for (const entry of history) {
+    if (entry.role === 'user') {
+      const verdict = inspectUserInput(entry.content, { maxLength: 4000 })
+      skipNextAssistant = !verdict.allowed
+      if (verdict.allowed) messages.push({ role: 'user', content: verdict.text })
+      else log({ type: 'history_entry_dropped', category: verdict.category })
+    } else {
+      if (!skipNextAssistant) messages.push({ role: 'assistant', content: entry.content })
+      skipNextAssistant = false
+    }
+  }
+
   // Los proveedores exigen que la conversacion empiece con el usuario.
   while (messages[0] !== undefined && messages[0].role !== 'user') messages.shift()
   return messages
+}
+
+function acceptDirective(directive: UiDirective): boolean {
+  return directive.type === 'image'
+    ? isAllowedUrl(directive.url, IMAGE_HOSTS)
+    : isAllowedUrl(directive.url, OPEN_URL_HOSTS)
 }
 
 async function executeToolCall(
   call: LlmToolCall,
   known: ReadonlySet<string>,
   deps: AgentDeps,
+  log: (event: SecurityEvent) => void,
   collected: UiDirective[],
   candidates: PosterCandidate[],
 ): Promise<LlmToolResult> {
   if (!known.has(call.name)) {
+    log({ type: 'unknown_tool_requested', tool: call.name })
     return {
       toolCallId: call.id,
       name: call.name,
-      content: JSON.stringify({ error: 'Esa herramienta no existe.' }),
+      content: wrapUntrusted(call.name, { error: 'Esa herramienta no existe.' }),
       isError: true,
     }
   }
 
   const outcome = await deps.tools.callTool(call.name, call.input)
-  collected.push(...outcome.ui)
   if (outcome.ok) candidates.push(...posterCandidates(outcome.payload))
+
+  for (const directive of outcome.ui) {
+    if (acceptDirective(directive)) collected.push(directive)
+    else log({ type: 'ui_directive_rejected', tool: call.name, url: directive.url })
+  }
+
+  const sanitized = sanitizeUntrusted(outcome.payload)
+  if (sanitized.flagged > 0) {
+    log({ type: 'untrusted_data_flagged', tool: call.name, count: sanitized.flagged })
+  }
 
   return {
     toolCallId: call.id,
     name: call.name,
-    content: JSON.stringify(outcome.payload),
+    content: wrapUntrusted(call.name, sanitized.value),
     isError: !outcome.ok,
   }
 }
@@ -129,7 +203,8 @@ type ImageDirective = Extract<UiDirective, { type: 'image' }>
 
 /**
  * Si el modelo consulto TMDB pero no pidio el poster, se adjunta el de la
- * primera pelicula que menciona. La URL es la que armo el MCP Server.
+ * primera pelicula que menciona. La URL viene de un dato externo, asi que
+ * pasa por la misma lista blanca que cualquier otra imagen.
  */
 function withFallbackPoster(
   text: string,
@@ -138,9 +213,13 @@ function withFallbackPoster(
 ): readonly ImageDirective[] {
   if (images.length > 0) return images
   const poster = fallbackPoster(text, candidates)
-  return poster === null
-    ? images
-    : [{ type: 'image', url: poster.posterUrl, alt: `Póster de ${poster.title}` }]
+  if (poster === null) return images
+  const directive: ImageDirective = {
+    type: 'image',
+    url: poster.posterUrl,
+    alt: `Póster de ${poster.title}`,
+  }
+  return acceptDirective(directive) ? [directive] : images
 }
 
 async function think(
@@ -148,6 +227,7 @@ async function think(
   tools: readonly LlmToolSpec[],
   deps: AgentDeps,
   limits: AgentLimits,
+  log: (event: SecurityEvent) => void,
 ): Promise<TurnOutput> {
   const known = new Set(tools.map((tool) => tool.name))
   const directives: UiDirective[] = []
@@ -198,7 +278,9 @@ async function think(
       ...(response.providerState === undefined ? {} : { providerState: response.providerState }),
     })
     const results = await Promise.all(
-      response.toolCalls.map((call) => executeToolCall(call, known, deps, directives, candidates)),
+      response.toolCalls.map((call) =>
+        executeToolCall(call, known, deps, log, directives, candidates),
+      ),
     )
     messages.push({ role: 'tool', results })
   }
@@ -258,15 +340,24 @@ function withAnnouncement(text: string, isFirstTurn: boolean): string {
 export async function runAgentTurn(message: OutboundMessage, deps: AgentDeps): Promise<void> {
   const limits = { ...DEFAULT_LIMITS, ...deps.limits }
   const timing = { ...DEFAULT_TIMING, ...deps.timing }
+  const log = deps.log ?? (() => {})
   const replyId = `${message.messageId}-reply`
+  const plain = (text: string): TurnOutput => ({ text, images: [], openUrls: [] })
 
-  const history = toLlmHistory(message.history ?? [])
-  const messages: LlmMessage[] = [...history, { role: 'user', content: message.text.trim() }]
+  const verdict = inspectUserInput(message.text)
+  if (!verdict.allowed) {
+    log({ type: 'input_blocked', category: verdict.category, rules: verdict.matched })
+    await streamReply(replyId, plain(REFUSALS[verdict.category]), deps, timing)
+    return
+  }
+
+  const history = sanitizeHistory(message.history ?? [], log)
+  const messages: LlmMessage[] = [...history, { role: 'user', content: verdict.text }]
 
   let output: TurnOutput
   try {
     const tools = await deps.tools.listTools()
-    output = await think(messages, tools, deps, limits)
+    output = await think(messages, tools, deps, limits, log)
   } catch (error) {
     const kind = error instanceof LlmError ? error.kind : 'unavailable'
     deps.emit({
@@ -278,7 +369,25 @@ export async function runAgentTurn(message: OutboundMessage, deps: AgentDeps): P
     return
   }
 
-  const text = output.text.trim().length === 0 ? REFUSALS.model_refusal : output.text
+  const cleaned = sanitizeMarkdownUrls(output.text, {
+    imageHosts: IMAGE_HOSTS,
+    linkHosts: LINK_HOSTS,
+  })
+  if (cleaned.removed > 0) log({ type: 'markdown_url_removed', count: cleaned.removed })
+
+  const outputVerdict = inspectOutput(cleaned.text, {
+    canary: deps.canary,
+    systemPrompt: deps.systemPrompt,
+    ...(deps.secrets === undefined ? {} : { secrets: deps.secrets }),
+  })
+  if (!outputVerdict.allowed) {
+    log({ type: 'output_blocked', category: outputVerdict.category })
+    // Un turno comprometido no abre pestanias ni pinta imagenes.
+    await streamReply(replyId, plain(REFUSALS.leak), deps, timing)
+    return
+  }
+
+  const text = cleaned.text.trim().length === 0 ? REFUSALS.model_refusal : cleaned.text
   await streamReply(
     replyId,
     { ...output, text: withAnnouncement(text, history.length === 0) },

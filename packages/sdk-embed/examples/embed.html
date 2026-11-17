@@ -22,10 +22,20 @@
     <h1>Tienda de ejemplo</h1>
     <p>Este sitio no usa React. El widget se integra con una sola etiqueta script.</p>
 
-    <!-- Antes, compile el bundle (pnpm build) y levante el mock (pnpm mock). -->
-    <script
-      src="../dist/agichat.js"
-      onload="AGIChat.mount({ wsUrl: 'ws://localhost:8787' })"
-    ></script>
+    <!--
+      Antes, compile el bundle (pnpm build) y levante el agente (docker compose up)
+      o el agente simulado (pnpm mock). La atribucion de TMDB es obligatoria en el
+      plan gratuito de su API.
+    -->
+    <script src="../dist/agichat.js"></script>
+    <script>
+      AGIChat.mount({
+        wsUrl: 'ws://localhost:8787',
+        attribution: {
+          text: 'Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.',
+          href: 'https://www.themoviedb.org/',
+        },
+      })
+    </script>
   </body>
 </html>

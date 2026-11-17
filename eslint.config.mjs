@@ -113,6 +113,45 @@ export default tseslint.config(
   },
 
   {
+    // Las defensas son logica pura: no dependen de nadie del monorepo.
+    files: ['packages/guardrails/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@agichat/*'],
+              message: 'guardrails no depende de otros paquetes: cualquiera debe poder usarlo.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    // Los MCP Servers se despliegan y escalan por separado: no se conocen entre
+    // si ni conocen al agente que los consume.
+    files: ['packages/mcp-*/**/*.ts'],
+    ignores: ['packages/mcp-kit/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@agichat/*', '!@agichat/mcp-kit'],
+              message:
+                'Un MCP Server solo puede usar @agichat/mcp-kit. Otro agente debe poder consumirlo sin arrastrar el resto del sistema.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     // El agente descubre las herramientas por MCP; nunca importa un servidor.
     files: ['packages/agent-server/**/*.ts'],
     rules: {
@@ -139,7 +178,12 @@ export default tseslint.config(
   {
     // El servidor mock es una herramienta de desarrollo y los cli.ts son puntos
     // de entrada de procesos: ahi si se registra por consola.
-    files: ['packages/mock-server/**/*.ts', 'packages/*/src/cli.ts', 'apps/demo/**/*.{ts,tsx}'],
+    files: [
+      'packages/mock-server/**/*.ts',
+      'packages/*/src/cli.ts',
+      'apps/demo/**/*.{ts,tsx}',
+      'scripts/**/*.mjs',
+    ],
     rules: {
       'no-console': 'off',
     },

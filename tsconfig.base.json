@@ -31,8 +31,12 @@
       "@agichat/mock-server": ["./packages/mock-server/src/index.ts"],
       "@agichat/mock-server/browser": ["./packages/mock-server/src/browser.ts"],
       "@agichat/ui-react": ["./packages/ui-react/src/index.ts"],
+      "@agichat/guardrails": ["./packages/guardrails/src/index.ts"],
       "@agichat/mcp-kit": ["./packages/mcp-kit/src/index.ts"],
-      "@agichat/agent-server": ["./packages/agent-server/src/index.ts"]
+      "@agichat/mcp-tmdb": ["./packages/mcp-tmdb/src/index.ts"],
+      "@agichat/mcp-books": ["./packages/mcp-books/src/index.ts"],
+      "@agichat/agent-server": ["./packages/agent-server/src/index.ts"],
+      "@agichat/evals": ["./packages/evals/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", "coverage"]

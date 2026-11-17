@@ -2,9 +2,10 @@ export {
   REFUSALS,
   chunkText,
   runAgentTurn,
-  toLlmHistory,
+  sanitizeHistory,
   type AgentDeps,
   type AgentLimits,
+  type SecurityEvent,
   type StreamTiming,
 } from './agent.js'
 export {

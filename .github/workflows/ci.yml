@@ -1,5 +1,6 @@
 # Integracion continua: ningun cambio llega a main sin pasar lint, formato,
-# tipos, pruebas con umbral de cobertura (80 %) y build de todos los paquetes.
+# tipos, pruebas con umbral de cobertura (80 %), build de todos los paquetes,
+# evals del agente (uso correcto, LLM01 y LLM07) y build de la imagen Docker.
 name: CI
 
 on:
@@ -53,6 +54,10 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Resumen de cobertura
+        if: matrix.node == 22 && always()
+        run: node scripts/coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publicar reporte de cobertura
         if: matrix.node == 22 && always()
         uses: actions/upload-artifact@v4
@@ -60,3 +65,44 @@ jobs:
           name: coverage
           path: coverage/
           retention-days: 14
+
+  evals:
+    name: Evals del agente
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      # Modo sin conexion: determinista y sin claves. Falla si algun caso falla.
+      - name: Correr evals
+        run: pnpm evals --out evals-report
+
+      - name: Publicar el reporte en el resumen
+        if: always()
+        run: cat evals-report/REPORTE.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar el reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evals
+          path: evals-report/
+          retention-days: 30
+
+  docker:
+    name: Imagen Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen del backend
+        run: docker build -t agichat-backend .

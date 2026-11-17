@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage } from 'node:http'
 import type { AgentEvent } from '@agichat/core'
 import { WebSocketServer, type WebSocket } from 'ws'
-import { runAgentTurn, type AgentDeps } from './agent.js'
+import { runAgentTurn, type AgentDeps, type SecurityEvent } from './agent.js'
 import { parseInboundJson } from './protocol.js'
 import { RateLimiter } from './rate-limiter.js'
 
@@ -21,6 +21,7 @@ export interface AgentServerOptions {
   readonly deps: TurnDeps
   readonly allowedOrigins?: readonly string[]
   readonly rateLimitPerMinute?: number
+  readonly log?: (event: SecurityEvent) => void
 }
 
 export interface AgentServerHandle {
@@ -60,6 +61,7 @@ function handleConnection(socket: WebSocket, options: AgentServerOptions): void 
     busy = true
     runAgentTurn(parsed.message, {
       ...options.deps,
+      ...(options.log === undefined ? {} : { log: options.log }),
       emit: (event) => sendEvent(socket, event),
       wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     })
