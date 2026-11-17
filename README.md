@@ -28,8 +28,8 @@ Widget de chat agéntico embebible (proyecto 1) y **Sofía**, un agente que reco
 - Docker (opcional, para levantar el backend con un solo comando)
 - Credenciales:
   - **TMDB**: cree una cuenta en themoviedb.org y solicite la clave en _Settings → API_. Indique que son estudiantes del curso CC3116 de la Universidad del Valle de Guatemala y elija **uso no comercial**. El plan gratuito da 1,000 peticiones diarias.
-  - **Google Books** (opcional): clave en Google Cloud Console, sin tarjeta. Sin clave también funciona, con menos cupo. **No registre ninguna tarjeta de crédito.**
-  - **Modelo de lenguaje**: una clave de Anthropic, o la de cualquier proveedor con API “chat completions” y plan gratuito (Gemini, Groq u Ollama local). Ver `.env.example`.
+  - **Google Books**: clave en Google Cloud Console (_APIs y servicios → habilitar "Books API" → Credenciales → Crear clave de API_), sin tarjeta. Sin clave, Google Books usa un cupo anónimo compartido que suele estar agotado (error 429). **No registre ninguna tarjeta de crédito.**
+  - **Modelo de lenguaje**: una clave de Anthropic, o la de cualquier proveedor con API “chat completions” y plan gratuito (Gemini, Groq u Ollama local). Con Gemini se probó `gemini-3.5-flash-lite` (clave en aistudio.google.com/apikey); el plan gratuito limita las peticiones por minuto y por día, y el adaptador reintenta con espera ante un 429. Ver `.env.example`.
 
 ## Instalación
 
@@ -114,16 +114,16 @@ Los MCP Servers también corren por stdio, por ejemplo para Claude Desktop o un 
 
 ## Pruebas, evals y calidad
 
-| Comando              | Qué verifica                                                            |
-| -------------------- | ----------------------------------------------------------------------- |
-| `pnpm lint`          | ESLint, incluidos los límites entre paquetes                            |
-| `pnpm format:check`  | Formato con Prettier                                                    |
-| `pnpm typecheck`     | Tipos en todos los paquetes                                             |
-| `pnpm test`          | Pruebas unitarias y de integración                                      |
-| `pnpm test:coverage` | Lo mismo, con cobertura; falla por debajo de 80 % (hoy, 99 % de líneas) |
-| `pnpm evals`         | 27 evals sin conexión; escribe `docs/evals/REPORTE.md`                  |
-| `pnpm evals:live`    | Los mismos evals contra el modelo configurado en `.env` (gasta tokens)  |
-| `pnpm verify`        | Lint, tipos, cobertura y build, como en CI                              |
+| Comando              | Qué verifica                                                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`          | ESLint, incluidos los límites entre paquetes                                                                                     |
+| `pnpm format:check`  | Formato con Prettier                                                                                                             |
+| `pnpm typecheck`     | Tipos en todos los paquetes                                                                                                      |
+| `pnpm test`          | Pruebas unitarias y de integración                                                                                               |
+| `pnpm test:coverage` | Lo mismo, con cobertura; falla por debajo de 80 % (hoy, 99 % de líneas)                                                          |
+| `pnpm evals`         | 27 evals sin conexión; escribe `docs/evals/REPORTE.md`                                                                           |
+| `pnpm evals:live`    | Los mismos evals contra el modelo de `.env`, con 15 s entre casos por el límite de los planes gratuitos (`--pause-ms` lo cambia) |
+| `pnpm verify`        | Lint, tipos, cobertura y build, como en CI                                                                                       |
 
 El reporte HTML de cobertura queda en `coverage/index.html`.
 
