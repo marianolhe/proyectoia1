@@ -35,13 +35,32 @@ export function normalizeTitle(title: string): string {
     .trim()
 }
 
+/**
+ * Quita lo que va entre parentesis o corchetes: suele ser la serie o la
+ * edicion ("Dune (Las cronicas de Dune 1)"), no parte del nombre de la obra.
+ */
+function baseTitle(title: string): string {
+  return normalizeTitle(title.replace(/\([^)]*\)|\[[^\]]*\]/g, ' '))
+}
+
+/**
+ * Que tanto se parece el titulo del libro al de la pelicula. Los niveles
+ * salieron de resultados reales de Google Books: para "Dune" aparecen la
+ * novela original (sin calificaciones), precuelas de otros autores como
+ * "Dune: The Butlerian Jihad" (con calificaciones) y secuelas como
+ * "Children of Dune". El titulo identico tiene que pesar mas que cualquier
+ * otro desempate, o gana el libro equivocado de la saga.
+ */
 function titleScore(bookTitle: string, movieTitle: string): number {
   if (movieTitle === '') return 0
-  // El titulo del libro puede llevar subtitulo ("Dune: edicion ilustrada").
-  const mainTitle = normalizeTitle(bookTitle.split(':')[0] ?? bookTitle)
-  if (mainTitle === movieTitle) return 4
-  const full = normalizeTitle(bookTitle)
-  if (full.startsWith(`${movieTitle} `) || mainTitle.endsWith(` ${movieTitle}`)) return 3
+  const full = baseTitle(bookTitle)
+  if (full === movieTitle) return 5
+  // Mismo nombre con subtitulo: puede ser una edicion de la obra o otro libro
+  // de la saga ("Eragon: Book I" frente a "Dune: House Corrino").
+  const mainTitle = baseTitle(bookTitle.split(':')[0] ?? bookTitle)
+  if (mainTitle === movieTitle) return 3
+  // Solo contiene el nombre: casi siempre es otra obra de la saga.
+  if (full.startsWith(`${movieTitle} `) || full.endsWith(` ${movieTitle}`)) return 2
   return 0
 }
 
