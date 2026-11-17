@@ -1,0 +1,29 @@
+{
+  "name": "@agichat/agent-server",
+  "version": "0.1.0",
+  "description": "Backend sin estado del agente: orquestador LLM, cliente MCP y servidor WebSocket.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "start": "tsup && node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@agichat/core": "workspace:*",
+    "@anthropic-ai/sdk": "~1.7.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@agichat/mcp-kit": "workspace:*",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.6.7"
+  }
+}
