@@ -63,6 +63,20 @@ describe('mount', () => {
     expect(shadow?.querySelector('img')?.getAttribute('src')).toBe('/avatar.png')
   })
 
+  it('pasa la atribucion y la politica de destinos al widget', async () => {
+    await act(async () => {
+      instance = mount({
+        transport: new InMemoryTransport(),
+        launcher: false,
+        attribution: { text: 'Datos de TMDB', href: 'https://www.themoviedb.org/' },
+        policy: { openUrlHosts: ['www.imdb.com'] },
+      })
+    })
+
+    const footer = host().shadowRoot?.querySelector('.agc-attribution')
+    expect(footer?.textContent).toContain('Datos de TMDB')
+  })
+
   it('acepta un elemento como destino', async () => {
     const target = document.createElement('div')
     document.body.append(target)

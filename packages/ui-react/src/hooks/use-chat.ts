@@ -2,6 +2,8 @@ import {
   canSubmit,
   createInitialState,
   isAgentResponding,
+  type AgentAction,
+  type AgentActionStatus,
   type ChatClient,
   type ConversationState,
   type Message,
@@ -12,10 +14,12 @@ import { useCallback, useSyncExternalStore } from 'react'
 export interface UseChatResult {
   readonly state: ConversationState
   readonly messages: readonly Message[]
+  readonly actions: readonly AgentAction[]
   readonly canSubmit: boolean
   readonly isResponding: boolean
   sendMessage(text: string): Promise<SendResult>
   reset(): void
+  resolveAction(actionId: string, status: AgentActionStatus): void
 }
 
 // Instantanea fija mientras no hay cliente: useSyncExternalStore exige que
@@ -48,13 +52,19 @@ export function useChat(client: ChatClient | null): UseChatResult {
     [client],
   )
   const reset = useCallback(() => client?.resetConversation(), [client])
+  const resolveAction = useCallback(
+    (actionId: string, status: AgentActionStatus) => client?.resolveAction(actionId, status),
+    [client],
+  )
 
   return {
     state,
     messages: state.messages,
+    actions: state.actions,
     canSubmit: canSubmit(state),
     isResponding: isAgentResponding(state),
     sendMessage,
     reset,
+    resolveAction,
   }
 }

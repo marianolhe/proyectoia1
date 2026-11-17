@@ -17,7 +17,23 @@ export { TypingIndicator, type TypingIndicatorProps } from './components/typing-
 export { Composer, type ComposerProps } from './components/composer.js'
 export { Launcher, type LauncherProps } from './components/launcher.js'
 export { ConnectionNotice, type ConnectionNoticeProps } from './components/connection-notice.js'
+export { ActionNotices, type ActionNoticesProps } from './components/action-notices.js'
+export {
+  Attribution,
+  type AttributionInfo,
+  type AttributionProps,
+} from './components/attribution.js'
+export { MessageImages, type MessageImagesProps } from './components/message-images.js'
 
 export { useChat, type UseChatResult } from './hooks/use-chat.js'
 export { useOwnedClient } from './hooks/use-owned-client.js'
+export { openInNewTab, useOpenUrlActions, type UrlOpener } from './hooks/use-open-url-actions.js'
+export {
+  DEFAULT_POLICY,
+  PolicyContext,
+  isAllowedUrl,
+  resolvePolicy,
+  usePolicy,
+  type WidgetPolicy,
+} from './policy.js'
 export { DEFAULT_LABELS, resolveLabels, type ChatLabels } from './labels.js'
