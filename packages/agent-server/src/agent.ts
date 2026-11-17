@@ -242,10 +242,12 @@ async function think(
       return { text: REFUSALS.model_refusal, images: [], openUrls: [] }
 
     if (response.toolCalls.length === 0) {
-      // Recomendo peliculas de memoria: se le pide una vez que las verifique.
+      // Recomendo peliculas de memoria: ese borrador se descarta (el usuario
+      // nunca lo ve) y se le pide una vez que responda usando herramientas.
+      // Si el borrador quedara en el historial, el modelo creeria que ya
+      // recomendo y contestaria solo con una pregunta de seguimiento.
       if (toolCallsUsed === 0 && !nudged && mentionsMovies(response.text)) {
         nudged = true
-        messages.push({ role: 'assistant', content: response.text })
         messages.push({ role: 'user', content: TOOL_NUDGE })
         continue
       }
