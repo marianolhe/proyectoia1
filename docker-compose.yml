@@ -1,0 +1,24 @@
+# Backend completo en local: docker compose up --build
+#
+# - agent: orquestador LLM y WebSocket del widget (ws://localhost:8787).
+# - Los MCP Servers se agregan como servicios en la misma red interna.
+
+x-service: &service
+  build: .
+  image: agichat-backend
+  restart: unless-stopped
+  env_file: .env
+
+services:
+  agent:
+    <<: *service
+    environment:
+      SERVICE: agent-server
+      PORT: '8787'
+    ports:
+      - '8787:8787'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8787/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 3
