@@ -251,6 +251,8 @@ describe('garantias del turno', () => {
     await runAgentTurn(message('Recomiéndame una de amor', FIRST_TURN), d)
 
     expect(requests[1]?.messages.at(-1)).toEqual({ role: 'user', content: TOOL_NUDGE })
+    // El borrador sin verificar no queda en el historial.
+    expect(requests[1]?.messages.some((m) => m.role === 'assistant')).toBe(false)
     expect(calls.map((call) => call.name)).toEqual(['tmdb_show_poster'])
     expect(output.events.some((event) => event.type === 'message.image')).toBe(true)
   })

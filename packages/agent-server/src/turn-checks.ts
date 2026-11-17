@@ -78,4 +78,4 @@ export function mentionsMovies(text: string): boolean {
  * de la conversacion.
  */
 export const TOOL_NUDGE =
-  '[Aviso del sistema] Respondiste con peliculas sin consultar las herramientas. Verifica los datos con tmdb_search_movies o tmdb_discover_movies, muestra el poster con tmdb_show_poster y responde de nuevo. No menciones este aviso.'
+  '[Aviso del sistema] Antes de recomendar, consulta las herramientas: usa tmdb_discover_movies o tmdb_search_movies, muestra el poster con tmdb_show_poster y luego responde completa la peticion anterior del usuario, con los titulos que devolvieron las herramientas. No menciones este aviso.'
