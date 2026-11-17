@@ -10,6 +10,7 @@ import {
 import { LlmError, type LlmClient, type LlmResponse } from './ports/llm.js'
 import type { ToolGateway } from './ports/tool-gateway.js'
 import { BOOK_COMPARISON_ANNOUNCEMENT, buildSystemPrompt } from './system-prompt.js'
+import { TOOL_NUDGE } from './turn-checks.js'
 import { collect, fakeGateway, scriptedLlm, text, toolUse } from './testing/doubles.js'
 
 const CANARY = 'AGC-00000000000000000000aaaa'
@@ -42,6 +43,8 @@ const message = (value: string, history?: { role: 'user' | 'assistant'; content:
   text: value,
   ...(history === undefined ? {} : { history }),
 })
+
+const FIRST_TURN = [{ role: 'user' as const, content: 'Hola' }]
 
 describe('runAgentTurn', () => {
   describe('flujo normal', () => {
@@ -379,6 +382,91 @@ describe('runAgentTurn', () => {
       })
       expect(second.text()).toBe('respuesta')
     })
+  })
+})
+
+describe('garantias del turno', () => {
+  const MOVIE = {
+    title: 'Diario de una pasión',
+    posterUrl: 'https://image.tmdb.org/t/p/w342/b.jpg',
+  }
+
+  it('si recomienda de memoria, le pide una vez que verifique con las herramientas', async () => {
+    const { llm, requests } = scriptedLlm([
+      text('Te recomiendo **Diario de una pasión** (2004).'),
+      toolUse('tmdb_show_poster', { movie_id: 11036 }),
+      text('Te recomiendo **Diario de una pasión** (2004).'),
+    ])
+    const { gateway, calls } = fakeGateway({
+      tmdb_show_poster: {
+        ok: true,
+        payload: {},
+        ui: [{ type: 'image', url: MOVIE.posterUrl, alt: 'P' }],
+      },
+    })
+    const { deps: d, output } = deps(llm, gateway)
+
+    await runAgentTurn(message('Recomiéndame una de amor', FIRST_TURN), d)
+
+    expect(requests[1]?.messages.at(-1)).toEqual({ role: 'user', content: TOOL_NUDGE })
+    expect(calls.map((call) => call.name)).toEqual(['tmdb_show_poster'])
+    expect(output.events.some((event) => event.type === 'message.image')).toBe(true)
+  })
+
+  it('pide la verificacion una sola vez', async () => {
+    const llm = { complete: vi.fn(() => Promise.resolve(text('**Duna** (2021)'))) }
+    const { deps: d, output } = deps(llm, fakeGateway().gateway)
+
+    await runAgentTurn(message('x', FIRST_TURN), d)
+
+    expect(llm.complete).toHaveBeenCalledTimes(2)
+    expect(output.text()).toContain('**Duna** (2021)')
+  })
+
+  it('adjunta el poster si consulto TMDB pero olvido pedirlo', async () => {
+    const { llm } = scriptedLlm([
+      toolUse('tmdb_search_movies', { query: 'amor' }),
+      text('Te recomiendo **Diario de una pasión** (2004).'),
+    ])
+    const { gateway } = fakeGateway({
+      tmdb_search_movies: { ok: true, payload: { movies: [MOVIE] }, ui: [] },
+    })
+    const { deps: d, output } = deps(llm, gateway)
+
+    await runAgentTurn(message('x', FIRST_TURN), d)
+
+    expect(output.events).toContainEqual({
+      type: 'message.image',
+      messageId: 'm1-reply',
+      url: MOVIE.posterUrl,
+      alt: 'Póster de Diario de una pasión',
+    })
+  })
+
+  it('el poster de respaldo tambien pasa por la lista blanca', async () => {
+    const { llm } = scriptedLlm([toolUse('tmdb_search_movies'), text('Mira **Duna** (2021).')])
+    const { gateway } = fakeGateway({
+      tmdb_search_movies: {
+        ok: true,
+        payload: { movies: [{ title: 'Duna', posterUrl: 'https://evil.example/espia.png' }] },
+        ui: [],
+      },
+    })
+    const { deps: d, output } = deps(llm, gateway)
+
+    await runAgentTurn(message('x', FIRST_TURN), d)
+    expect(output.events.some((event) => event.type === 'message.image')).toBe(false)
+  })
+
+  it('no inventa un poster si la respuesta no menciona la pelicula', async () => {
+    const { llm } = scriptedLlm([toolUse('tmdb_search_movies'), text('¿Qué género prefieres?')])
+    const { gateway } = fakeGateway({
+      tmdb_search_movies: { ok: true, payload: { movies: [MOVIE] }, ui: [] },
+    })
+    const { deps: d, output } = deps(llm, gateway)
+
+    await runAgentTurn(message('x', FIRST_TURN), d)
+    expect(output.events.some((event) => event.type === 'message.image')).toBe(false)
   })
 })
 

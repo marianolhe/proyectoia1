@@ -21,6 +21,13 @@ import {
 } from './ports/llm.js'
 import type { ToolGateway, UiDirective } from './ports/tool-gateway.js'
 import { BOOK_COMPARISON_ANNOUNCEMENT } from './system-prompt.js'
+import {
+  TOOL_NUDGE,
+  fallbackPoster,
+  mentionsMovies,
+  posterCandidates,
+  type PosterCandidate,
+} from './turn-checks.js'
 
 /**
  * Orquestador: un turno completo de la conversacion.
@@ -148,6 +155,7 @@ async function executeToolCall(
   deps: AgentDeps,
   log: (event: SecurityEvent) => void,
   collected: UiDirective[],
+  candidates: PosterCandidate[],
 ): Promise<LlmToolResult> {
   if (!known.has(call.name)) {
     log({ type: 'unknown_tool_requested', tool: call.name })
@@ -160,6 +168,7 @@ async function executeToolCall(
   }
 
   const outcome = await deps.tools.callTool(call.name, call.input)
+  if (outcome.ok) candidates.push(...posterCandidates(outcome.payload))
 
   for (const directive of outcome.ui) {
     if (acceptDirective(directive)) collected.push(directive)
@@ -190,6 +199,29 @@ function dedupeByUrl<T extends { readonly url: string }>(items: readonly T[], ma
   return unique.slice(0, max)
 }
 
+type ImageDirective = Extract<UiDirective, { type: 'image' }>
+
+/**
+ * Si el modelo consulto TMDB pero no pidio el poster, se adjunta el de la
+ * primera pelicula que menciona. La URL viene de un dato externo, asi que
+ * pasa por la misma lista blanca que cualquier otra imagen.
+ */
+function withFallbackPoster(
+  text: string,
+  images: readonly ImageDirective[],
+  candidates: readonly PosterCandidate[],
+): readonly ImageDirective[] {
+  if (images.length > 0) return images
+  const poster = fallbackPoster(text, candidates)
+  if (poster === null) return images
+  const directive: ImageDirective = {
+    type: 'image',
+    url: poster.posterUrl,
+    alt: `Póster de ${poster.title}`,
+  }
+  return acceptDirective(directive) ? [directive] : images
+}
+
 async function think(
   messages: LlmMessage[],
   tools: readonly LlmToolSpec[],
@@ -199,7 +231,9 @@ async function think(
 ): Promise<TurnOutput> {
   const known = new Set(tools.map((tool) => tool.name))
   const directives: UiDirective[] = []
+  const candidates: PosterCandidate[] = []
   let toolCallsUsed = 0
+  let nudged = false
 
   for (let step = 0; step < limits.maxSteps; step += 1) {
     const response = await deps.llm.complete({ system: deps.systemPrompt, messages, tools })
@@ -208,11 +242,22 @@ async function think(
       return { text: REFUSALS.model_refusal, images: [], openUrls: [] }
 
     if (response.toolCalls.length === 0) {
+      // Recomendo peliculas de memoria: se le pide una vez que las verifique.
+      if (toolCallsUsed === 0 && !nudged && mentionsMovies(response.text)) {
+        nudged = true
+        messages.push({ role: 'assistant', content: response.text })
+        messages.push({ role: 'user', content: TOOL_NUDGE })
+        continue
+      }
       return {
         text: response.text,
-        images: dedupeByUrl(
-          directives.filter((d) => d.type === 'image'),
-          limits.maxImages,
+        images: withFallbackPoster(
+          response.text,
+          dedupeByUrl(
+            directives.filter((d) => d.type === 'image'),
+            limits.maxImages,
+          ),
+          candidates,
         ),
         openUrls: dedupeByUrl(
           directives.filter((d) => d.type === 'open_url'),
@@ -231,7 +276,9 @@ async function think(
       ...(response.providerState === undefined ? {} : { providerState: response.providerState }),
     })
     const results = await Promise.all(
-      response.toolCalls.map((call) => executeToolCall(call, known, deps, log, directives)),
+      response.toolCalls.map((call) =>
+        executeToolCall(call, known, deps, log, directives, candidates),
+      ),
     )
     messages.push({ role: 'tool', results })
   }
