@@ -347,6 +347,27 @@ describe('runAgentTurn', () => {
       },
     )
 
+    it('registra la causa del fallo en el log del servidor', async () => {
+      const logError = vi.fn()
+      const llm = { complete: () => Promise.reject(new LlmError('auth', 'Falta la clave')) }
+      const { deps: d } = deps(llm, fakeGateway().gateway, { logError })
+
+      await runAgentTurn(message('x'), d)
+      expect(logError).toHaveBeenCalledWith({ kind: 'auth', detail: 'LlmError: Falta la clave' })
+    })
+
+    it('tambien registra fallos que no son del modelo', async () => {
+      const logError = vi.fn()
+      const failing: ToolGateway = {
+        ...fakeGateway().gateway,
+        listTools: () => Promise.reject('texto suelto'),
+      }
+      const { deps: d } = deps(scriptedLlm([text('x')]).llm, failing, { logError })
+
+      await runAgentTurn(message('x'), d)
+      expect(logError).toHaveBeenCalledWith({ kind: 'unavailable', detail: 'texto suelto' })
+    })
+
     it('un fallo desconocido se trata como servicio no disponible', async () => {
       const failing: ToolGateway = {
         ...fakeGateway().gateway,

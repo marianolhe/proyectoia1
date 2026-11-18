@@ -30,6 +30,7 @@ if (!loaded.ok) {
     rateLimitPerMinute: config.rateLimitPerMinute,
     // Una linea JSON por evento: cualquier recolector de logs la puede indexar.
     log: (event) => console.warn(JSON.stringify({ scope: 'security', ...event })),
+    logError: (error) => console.error(JSON.stringify({ scope: 'llm', ...error })),
     deps: {
       llm: createLlm(config.llm),
       tools: new McpToolGateway({

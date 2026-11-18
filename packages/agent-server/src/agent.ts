@@ -57,6 +57,11 @@ export type SecurityEvent =
   | { readonly type: 'output_blocked'; readonly category: string }
   | { readonly type: 'unknown_tool_requested'; readonly tool: string }
 
+export interface TurnError {
+  readonly kind: LlmError['kind']
+  readonly detail: string
+}
+
 export interface AgentLimits {
   /** Idas y vueltas modelo-herramientas por turno (LLM10: consumo sin limite). */
   readonly maxSteps: number
@@ -80,6 +85,12 @@ export interface AgentDeps {
   wait(ms: number): Promise<void>
   /** Registro de eventos de seguridad. Nunca recibe el texto del usuario. */
   log?(event: SecurityEvent): void
+  /**
+   * Fallos del modelo o de la orquestacion. El usuario solo ve un aviso
+   * generico; la causa real tiene que quedar en el log del servidor para que
+   * quien opera el agente pueda diagnosticarla (clave faltante, cupo, red).
+   */
+  logError?(error: TurnError): void
   readonly limits?: Partial<AgentLimits>
   readonly timing?: Partial<StreamTiming>
 }
@@ -360,6 +371,10 @@ export async function runAgentTurn(message: OutboundMessage, deps: AgentDeps): P
     output = await think(messages, tools, deps, limits, log)
   } catch (error) {
     const kind = error instanceof LlmError ? error.kind : 'unavailable'
+    deps.logError?.({
+      kind,
+      detail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    })
     deps.emit({
       type: 'error',
       code: `llm_${kind}`,

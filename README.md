@@ -92,6 +92,25 @@ Para que las pestañas se abran solas, permita las ventanas emergentes del sitio
 
 Sin backend, la demo puede usar el agente simulado del proyecto 1 dentro del navegador (opción «Agente simulado» o `VITE_AGICHAT_WS_URL` vacía).
 
+### Si algo falla
+
+Primero revise el log del agente: ahí queda la causa real de cada error (el widget solo muestra un aviso genérico).
+
+```bash
+docker compose logs agent
+```
+
+| Síntoma                                                             | Causa y solución                                                                                                                                             |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| El agente no arranca y el log dice «Falta la credencial del modelo» | El `.env` no tiene la clave del modelo. Complete `LLM_API_KEY` (Gemini) o, si usa Claude, `ANTHROPIC_API_KEY`, y vuelva a correr `docker compose up --build` |
+| «El asistente no está disponible» y el log muestra `"scope":"llm"`  | El modelo no respondió (red o error del proveedor). El `detail` del log dice cuál                                                                            |
+| «El asistente está recibiendo muchas consultas»                     | Límite por minuto del plan gratuito de Gemini: espere unos segundos                                                                                          |
+| La comparación dice que Google Books no responde                    | Falta `GOOGLE_BOOKS_API_KEY` en `.env`                                                                                                                       |
+| `"pnpm" no se reconoce`                                             | Corra `corepack enable` como administrador, o use `corepack pnpm ...`                                                                                        |
+| `localhost:5173` rechaza la conexión                                | La demo no está corriendo: `pnpm --filter @agichat/demo run dev`                                                                                             |
+
+Después de cambiar `.env` hay que reiniciar los contenedores para que lo lean.
+
 ### Usar las herramientas desde otro cliente MCP
 
 Los MCP Servers también corren por stdio, por ejemplo para Claude Desktop o un IDE:
