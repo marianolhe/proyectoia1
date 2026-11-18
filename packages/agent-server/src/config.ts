@@ -72,6 +72,18 @@ function loadLlm(env: Env): { ok: true; llm: LlmConfig } | { ok: false; reason: 
   const provider = value(env, 'LLM_PROVIDER') ?? 'anthropic'
 
   if (provider === 'anthropic') {
+    // Sin credencial el agente arrancaba y fallaba recien con el primer
+    // mensaje, con un "no disponible" que no decia por que. Mejor no arrancar.
+    if (
+      value(env, 'ANTHROPIC_API_KEY') === undefined &&
+      value(env, 'ANTHROPIC_AUTH_TOKEN') === undefined
+    ) {
+      return {
+        ok: false,
+        reason:
+          'Falta la credencial del modelo. Con LLM_PROVIDER=anthropic defina ANTHROPIC_API_KEY; para usar Gemini gratis defina LLM_PROVIDER=openai-compatible con LLM_BASE_URL, LLM_API_KEY y LLM_MODEL (ver .env.example).',
+      }
+    }
     const model = value(env, 'ANTHROPIC_MODEL')
     return { ok: true, llm: { provider, ...(model === undefined ? {} : { model }) } }
   }

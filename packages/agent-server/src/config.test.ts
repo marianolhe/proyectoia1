@@ -6,7 +6,7 @@ import { OpenAiCompatibleLlm } from './llm/openai-compatible-llm.js'
 
 describe('loadConfig', () => {
   it('tiene valores por defecto para desarrollo local', () => {
-    expect(loadConfig({})).toEqual({
+    expect(loadConfig({ ANTHROPIC_API_KEY: 'sk-ant-1' })).toEqual({
       ok: true,
       config: {
         port: 8787,
@@ -17,9 +17,20 @@ describe('loadConfig', () => {
         ],
         allowedOrigins: [],
         rateLimitPerMinute: 20,
-        secrets: [],
+        secrets: ['sk-ant-1'],
       },
     })
+  })
+
+  it('no arranca con Claude si falta su credencial y explica como usar Gemini', () => {
+    const result = loadConfig({})
+    expect(result.ok).toBe(false)
+    expect(!result.ok && result.reason).toMatch(/ANTHROPIC_API_KEY/)
+    expect(!result.ok && result.reason).toMatch(/LLM_PROVIDER=openai-compatible/)
+  })
+
+  it('acepta un token de autenticacion en lugar de la clave', () => {
+    expect(loadConfig({ ANTHROPIC_AUTH_TOKEN: 't' })).toMatchObject({ ok: true })
   })
 
   it('lee todo del entorno', () => {
@@ -45,7 +56,9 @@ describe('loadConfig', () => {
   })
 
   it('ignora numeros invalidos', () => {
-    expect(loadConfig({ PORT: 'abc', RATE_LIMIT_PER_MINUTE: '-1' })).toMatchObject({
+    expect(
+      loadConfig({ ANTHROPIC_API_KEY: 'k', PORT: 'abc', RATE_LIMIT_PER_MINUTE: '-1' }),
+    ).toMatchObject({
       config: { port: 8787, rateLimitPerMinute: 20 },
     })
   })
@@ -81,7 +94,9 @@ describe('loadConfig', () => {
 
   it('rechaza un proveedor desconocido o MCP_SERVERS mal escrito', () => {
     expect(loadConfig({ LLM_PROVIDER: 'otro' })).toMatchObject({ ok: false })
-    expect(loadConfig({ MCP_SERVERS: 'sin-igual' })).toMatchObject({ ok: false })
+    expect(loadConfig({ ANTHROPIC_API_KEY: 'k', MCP_SERVERS: 'sin-igual' })).toMatchObject({
+      ok: false,
+    })
   })
 })
 

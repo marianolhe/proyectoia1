@@ -7,6 +7,7 @@ export {
   type AgentLimits,
   type SecurityEvent,
   type StreamTiming,
+  type TurnError,
 } from './agent.js'
 export {
   loadConfig,

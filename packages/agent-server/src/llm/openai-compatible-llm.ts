@@ -111,16 +111,32 @@ function parseToolCalls(raw: unknown): LlmToolCall[] {
   return calls
 }
 
-function errorFor(status: number): LlmError {
-  if (status === 401 || status === 403) {
-    return new LlmError('auth', 'La credencial del modelo no es valida.')
+/**
+ * Extrae el mensaje de error del proveedor. Gemini lo manda como lista
+ * (`[{ error: { message } }]`) y los demas como objeto (`{ error: { message } }`).
+ */
+export function providerErrorMessage(body: unknown): string {
+  const first: unknown = Array.isArray(body) ? body[0] : body
+  if (!isObject(first) || !isObject(first.error)) return ''
+  const message = first.error.message
+  return typeof message === 'string' ? message.slice(0, 200) : ''
+}
+
+/** Gemini responde 400 (no 401) cuando la clave es invalida. */
+const INVALID_KEY = /api[ _-]?key|credential|unauthori[sz]ed|permission/i
+
+export function errorFor(status: number, providerMessage = ''): LlmError {
+  const detail = providerMessage === '' ? '' : `: ${providerMessage}`
+  if (status === 401 || status === 403 || INVALID_KEY.test(providerMessage)) {
+    return new LlmError('auth', `La credencial del modelo no es valida (${status})${detail}`)
   }
-  if (status === 429)
-    return new LlmError('rate_limit', 'El proveedor limito la tasa de peticiones.')
+  if (status === 429) {
+    return new LlmError('rate_limit', `El proveedor limito la tasa de peticiones${detail}`)
+  }
   if (status >= 400 && status < 500) {
-    return new LlmError('bad_request', `El proveedor rechazo la peticion (${status}).`)
+    return new LlmError('bad_request', `El proveedor rechazo la peticion (${status})${detail}`)
   }
-  return new LlmError('unavailable', `El proveedor respondio con un error (${status}).`)
+  return new LlmError('unavailable', `El proveedor respondio con un error (${status})${detail}`)
 }
 
 /**
@@ -193,7 +209,15 @@ export class OpenAiCompatibleLlm implements LlmClient {
     }
 
     const response = await this.#send(JSON.stringify(body))
-    if (!response.ok) throw errorFor(response.status)
+    if (!response.ok) {
+      let body: unknown = null
+      try {
+        body = await response.json()
+      } catch {
+        // Sin cuerpo legible se informa solo el estado.
+      }
+      throw errorFor(response.status, providerErrorMessage(body))
+    }
 
     let payload: unknown
     try {

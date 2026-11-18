@@ -235,6 +235,40 @@ describe('OpenAiCompatibleLlm', () => {
     vi.useRealTimers()
   })
 
+  it('reconoce una clave invalida aunque el proveedor responda 400 (Gemini)', async () => {
+    const post = postReturning(400, [
+      { error: { code: 400, message: 'Please pass a valid API key', status: 'INVALID_ARGUMENT' } },
+    ])
+    await expect(llm(post).complete(REQUEST)).rejects.toMatchObject({
+      kind: 'auth',
+      message: 'La credencial del modelo no es valida (400): Please pass a valid API key',
+    })
+  })
+
+  it('incluye el mensaje del proveedor en errores con forma de objeto', async () => {
+    const post = postReturning(503, { error: { message: 'The model is overloaded' } })
+    await expect(llm(post).complete(REQUEST)).rejects.toMatchObject({
+      kind: 'unavailable',
+      message: 'El proveedor respondio con un error (503): The model is overloaded',
+    })
+  })
+
+  it('tolera errores sin cuerpo o con otra forma', async () => {
+    const noBody = vi.fn<HttpPost>(() =>
+      Promise.resolve({ ok: false, status: 422, json: () => Promise.reject(new Error('x')) }),
+    )
+    await expect(llm(noBody).complete(REQUEST)).rejects.toMatchObject({
+      kind: 'bad_request',
+      message: 'El proveedor rechazo la peticion (422)',
+    })
+    await expect(
+      llm(postReturning(429, { error: { message: 7 } })).complete(REQUEST),
+    ).rejects.toMatchObject({ message: 'El proveedor limito la tasa de peticiones' })
+    await expect(llm(postReturning(500, 'texto')).complete(REQUEST)).rejects.toMatchObject({
+      kind: 'unavailable',
+    })
+  })
+
   it('informa un fallo de red', async () => {
     const post = vi.fn<HttpPost>(() => Promise.reject(new Error('red')))
     await expect(llm(post).complete(REQUEST)).rejects.toBeInstanceOf(LlmError)
